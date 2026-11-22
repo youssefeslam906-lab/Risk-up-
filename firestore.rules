@@ -1,0 +1,192 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Primitive Helpers
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 2 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'youssefeslam906@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidGroup(g) {
+      return g in ['A', 'B', 'C', 'D'];
+    }
+
+    // 3. Validation Blueprints
+    function isValidTeam(data, teamId) {
+      return data.keys().hasAll(['id', 'name', 'group', 'players', 'paid', 'ownerUid', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'group', 'players', 'paid', 'ownerUid', 'createdAt']) &&
+        data.id == teamId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
+        isValidGroup(data.group) &&
+        data.players is list && data.players.size() >= 5 && data.players.size() <= 8 &&
+        data.players[0] is string && data.players[0].size() >= 1 && data.players[0].size() <= 30 &&
+        data.paid is bool &&
+        isValidId(data.ownerUid) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidTeamContact(data, teamId) {
+      return data.keys().hasAll(['teamId', 'ownerUid', 'phone', 'ref', 'createdAt']) &&
+        data.keys().hasOnly(['teamId', 'ownerUid', 'phone', 'ref', 'createdAt']) &&
+        data.teamId == teamId &&
+        isValidId(data.ownerUid) &&
+        data.phone is string && data.phone.size() == 11 && data.phone.matches('^01[0125][0-9]{8}$') &&
+        data.ref is string && data.ref.size() <= 30 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidScore(val) {
+      return val == null || (val is int && val >= 0 && val <= 99);
+    }
+
+    function isValidMatch(data, matchId) {
+      return data.keys().hasAll(['id', 'group', 'homeTeamId', 'awayTeamId', 'date', 'time', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'group', 'homeTeamId', 'awayTeamId', 'hs', 'aw', 'date', 'time', 'updatedAt']) &&
+        data.id == matchId &&
+        matchId.matches('^[A-D]_[a-zA-Z0-9_\\-]+_[a-zA-Z0-9_\\-]+$') &&
+        isValidGroup(data.group) &&
+        isValidId(data.homeTeamId) &&
+        isValidId(data.awayTeamId) &&
+        data.homeTeamId != data.awayTeamId &&
+        (!('hs' in data) || isValidScore(data.hs)) &&
+        (!('aw' in data) || isValidScore(data.aw)) &&
+        data.date is string && data.date.size() <= 30 &&
+        data.time is string && data.time.size() <= 20 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdmin(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        data.uid == uid &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+        data.createdAt is timestamp;
+    }
+
+    // 4. Collection Rules
+    // Public tournament roster (zero PII)
+    match /teams/{teamId} {
+      allow get: if isValidId(teamId);
+      allow list: if true;
+
+      allow create: if isVerified() &&
+        isValidId(teamId) &&
+        isValidTeam(incoming(), teamId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().paid == false &&
+        incoming().createdAt == request.time &&
+        existsAfter(/databases/$(database)/documents/team_contacts/$(teamId));
+
+      allow update: if isVerified() &&
+        isValidId(teamId) &&
+        isValidTeam(incoming(), teamId) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['group', 'paid', 'name', 'players']);
+
+      allow delete: if isValidId(teamId) && isAdmin();
+    }
+
+    // Isolated PII collection (captain phone + InstaPay ref)
+    match /team_contacts/{teamId} {
+      allow get: if isValidId(teamId) && (
+        isAdmin() || (isVerified() && existing().ownerUid == request.auth.uid)
+      );
+
+      allow list: if isBootstrappedAdmin() || (
+        isVerified() && resource.data.ownerUid == request.auth.uid
+      );
+
+      allow create: if isVerified() &&
+        isValidId(teamId) &&
+        isValidTeamContact(incoming(), teamId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        existsAfter(/databases/$(database)/documents/teams/$(teamId)) &&
+        getAfter(/databases/$(database)/documents/teams/$(teamId)).data.ownerUid == request.auth.uid;
+
+      allow update: if isVerified() &&
+        isValidId(teamId) &&
+        isValidTeamContact(incoming(), teamId) &&
+        incoming().teamId == existing().teamId &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'ref']);
+
+      allow delete: if isValidId(teamId) && isAdmin();
+    }
+
+    // Public group stage matches & scores
+    match /matches/{matchId} {
+      allow get: if isValidId(matchId);
+      allow list: if true;
+
+      allow create: if isValidId(matchId) &&
+        isAdmin() &&
+        isValidMatch(incoming(), matchId) &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/teams/$(incoming().homeTeamId)) &&
+        exists(/databases/$(database)/documents/teams/$(incoming().awayTeamId));
+
+      allow update: if isValidId(matchId) &&
+        isAdmin() &&
+        isValidMatch(incoming(), matchId) &&
+        incoming().id == existing().id &&
+        incoming().group == existing().group &&
+        incoming().homeTeamId == existing().homeTeamId &&
+        incoming().awayTeamId == existing().awayTeamId &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['hs', 'aw', 'date', 'time', 'updatedAt']);
+
+      allow delete: if isValidId(matchId) && isAdmin();
+    }
+
+    // Co-admin role registry (managed only by bootstrapped organizer)
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && isVerified() && (
+        request.auth.uid == uid || isBootstrappedAdmin()
+      );
+      allow list: if isBootstrappedAdmin();
+      allow create, update: if isValidId(uid) &&
+        isBootstrappedAdmin() &&
+        isValidAdmin(incoming(), uid) &&
+        incoming().createdAt == request.time;
+      allow delete: if isValidId(uid) && isBootstrappedAdmin();
+    }
+  }
+}

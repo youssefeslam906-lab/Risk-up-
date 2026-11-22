@@ -1,0 +1,193 @@
+{
+  "entities": {
+    "Team": {
+      "title": "Team",
+      "description": "Public tournament team entry without PII.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Document identifier for the team."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "Display name of the football team."
+        },
+        "group": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D"],
+          "description": "Assigned tournament group."
+        },
+        "players": {
+          "type": "array",
+          "description": "List of 5 to 8 player names."
+        },
+        "paid": {
+          "type": "boolean",
+          "description": "Registration payment confirmation status controlled by admin."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the captain who registered the team."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of registration."
+        }
+      },
+      "required": ["id", "name", "group", "players", "paid", "ownerUid", "createdAt"]
+    },
+    "TeamContact": {
+      "title": "TeamContact",
+      "description": "Isolated PII and payment reference for a registered team.",
+      "type": "object",
+      "properties": {
+        "teamId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Referenced team document ID."
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the captain."
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 11,
+          "maxLength": 11,
+          "pattern": "^01[0125][0-9]{8}$",
+          "description": "Egyptian mobile number of the team captain."
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 30,
+          "description": "Optional InstaPay transfer reference."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of contact record creation."
+        }
+      },
+      "required": ["teamId", "ownerUid", "phone", "ref", "createdAt"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Group stage match schedule and scoreline.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 128,
+          "pattern": "^[A-D]_[a-zA-Z0-9_\\-]+_[a-zA-Z0-9_\\-]+$",
+          "description": "Canonical match identifier encoding group and sorted team IDs."
+        },
+        "group": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D"],
+          "description": "Tournament group for the match."
+        },
+        "homeTeamId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Home team document ID."
+        },
+        "awayTeamId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Away team document ID."
+        },
+        "hs": {
+          "type": "number",
+          "description": "Home score (0..99) or null when unplayed."
+        },
+        "aw": {
+          "type": "number",
+          "description": "Away score (0..99) or null when unplayed."
+        },
+        "date": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 30,
+          "description": "Scheduled match date string."
+        },
+        "time": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 20,
+          "description": "Scheduled match time string."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["id", "group", "homeTeamId", "awayTeamId", "date", "time", "updatedAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Tournament organizer admin role grant document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Admin user UID."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120,
+          "description": "Admin email address."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of admin grant."
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/teams/{teamId}": {
+      "schema": { "$ref": "#/entities/Team" },
+      "description": "Public roster of registered teams in the Risk Up tournament."
+    },
+    "/team_contacts/{teamId}": {
+      "schema": { "$ref": "#/entities/TeamContact" },
+      "description": "PII-isolated captain phone numbers and InstaPay transfer references."
+    },
+    "/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/Match" },
+      "description": "Group stage fixture schedule and match scorelines."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/Admin" },
+      "description": "Authorized tournament organizer admin UIDs."
+    }
+  }
+}

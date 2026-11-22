@@ -1,0 +1,60 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --ink: #f4f7ec;
+  --card: #ffffff;
+  --surf: #eef3e2;
+  --line: #b9c89a;
+  --gold: #5e7a00;
+  --tx: #141a0c;
+  --mu: #56614a;
+  --on: #ffffff;
+  --bad: #c2254a;
+  color-scheme: light;
+}
+
+.dark {
+  --ink: #090c08;
+  --card: #10150e;
+  --surf: #161d13;
+  --line: #3b4e20;
+  --gold: #ccff00;
+  --tx: #ffffff;
+  --mu: #9aa58f;
+  --on: #090c08;
+  --bad: #ff6b8b;
+  color-scheme: dark;
+}
+
+@theme {
+  --font-cairo: "Cairo", Tahoma, sans-serif;
+  --font-mono-num: "IBM Plex Mono", monospace;
+  --color-ink: var(--ink);
+  --color-card: var(--card);
+  --color-surf: var(--surf);
+  --color-line: var(--line);
+  --color-gold: var(--gold);
+  --color-tx: var(--tx);
+  --color-mu: var(--mu);
+  --color-on: var(--on);
+  --color-bad: var(--bad);
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-cairo);
+  background-color: var(--ink);
+  color: var(--tx);
+}
+
+body {
+  background-color: var(--ink);
+  color: var(--tx);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

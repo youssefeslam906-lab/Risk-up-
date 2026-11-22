@@ -1,0 +1,6 @@
+{
+  "name": "Risk Up | بطولة كرة القدم",
+  "description": "منصة بطولة Risk Up لكرة القدم — تسجيل الفرق، متابعة المجموعات، جدول الماتشات، وترتيب النقاط مباشرة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

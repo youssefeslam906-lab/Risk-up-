@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Risk Up | بطولة كرة القدم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config={theme:{extend:{fontFamily:{cairo:['Cairo','Tahoma','sans-serif']},colors:{ink:'var(--ink)',card:'var(--card)',surf:'var(--surf)',line:'var(--line)',gold:'var(--gold)',tx:'var(--tx)',mu:'var(--mu)',on:'var(--on)',bad:'var(--bad)'}}}}
+</script>
+<style>
+:root{--ink:#090C08;--card:#10150E;--surf:#161D13;--line:#3B4E20;--gold:#CCFF00;--tx:#fff;--mu:#9aa58f;--on:#090C08;--bad:#ff6b8b;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--ink:#090C08}}
+@media(prefers-color-scheme:light){:root:not([data-theme=dark]){--ink:#f4f7ec;--card:#fff;--surf:#eef3e2;--line:#b9c89a;--gold:#5E7A00;--tx:#141a0c;--mu:#56614a;--on:#fff;--bad:#c2254a;color-scheme:light}}
+html{scroll-behavior:smooth;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--ink);color:var(--tx)}
+input,select{background:var(--surf);border:1px solid var(--line);color:var(--tx);border-radius:.75rem;padding:.65rem .9rem;width:100%}
+input:focus,select:focus{outline:2px solid var(--gold)}
+.c{background:var(--card);border:1px solid var(--line);border-radius:1.25rem}
+.b{background:var(--gold);color:var(--on);font-weight:900;border-radius:.75rem;padding:.6rem 1.2rem}
+.b2{border:1px solid var(--line);background:var(--surf);font-weight:700;border-radius:.75rem;padding:.4rem .8rem;font-size:.8rem}
+.b:disabled{opacity:.5}
+</style>
+</head>
+<body class="font-cairo antialiased">
+<div id="toast" class="fixed bottom-4 left-4 right-4 sm:right-auto z-50 hidden c px-4 py-3 text-sm font-bold border-gold"></div>
+
+<header class="sticky top-0 z-40 bg-ink/90 backdrop-blur border-b border-line">
+ <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+  <a href="#" class="flex items-center gap-2" dir="ltr"><span class="text-2xl font-black italic">RISK</span><span class="bg-gold text-on font-black italic px-2 rounded -skew-x-12">UP</span></a>
+  <nav class="hidden md:flex gap-6 text-sm font-bold text-mu"><a href="#center">المجموعات والماتشات</a><a href="#register">التسجيل</a><a href="#teams">الفرق</a></nav>
+  <a href="#register" class="b text-sm">احجز لفرقتك</a>
+ </div>
+</header>
+
+<section class="max-w-6xl mx-auto px-4 py-10 grid lg:grid-cols-2 gap-8 items-center">
+ <div class="space-y-5">
+  <span class="inline-block c px-3 py-1 text-xs font-bold text-gold">الموسم الجديد 2026</span>
+  <h1 class="text-4xl lg:text-5xl font-black leading-tight">انزل الملعب وسيطر على بطولة <span class="text-gold" dir="ltr">RISK UP</span></h1>
+  <p class="text-mu">سجّل فرقتك، وتابع المجموعات ومواعيد الماتشات وترتيب النقاط.</p>
+  <div class="grid grid-cols-3 gap-3 text-center">
+   <div class="c p-3"><div class="text-xl font-black text-gold">4</div><div class="text-xs text-mu">مجموعات، دوري ثم خروج مغلوب</div></div>
+   <div class="c p-3"><div class="text-xl font-black">16</div><div class="text-xs text-mu">فريق حد أقصى</div></div>
+   <div class="c p-3"><div class="text-xl font-black text-gold">5</div><div class="text-xs text-mu">جوائز</div></div>
+  </div>
+  <div class="c p-4">
+   <h3 class="font-black mb-2">🏆 جوائز البطولة</h3>
+   <ul class="grid sm:grid-cols-2 gap-2 text-sm font-bold">
+    <li class="bg-surf rounded-lg px-3 py-2">المركز الأول: <b class="text-gold">5000ج</b></li>
+    <li class="bg-surf rounded-lg px-3 py-2">المركز الثاني: <b class="text-gold">2500ج</b></li>
+    <li class="bg-surf rounded-lg px-3 py-2">هداف البطولة</li>
+    <li class="bg-surf rounded-lg px-3 py-2">أفضل لاعب</li>
+    <li class="bg-surf rounded-lg px-3 py-2 sm:col-span-2">أفضل حارس</li>
+   </ul>
+  </div>
+ </div>
+ <div class="c p-5">
+  <svg viewBox="0 0 400 300" class="w-full h-60" role="img" aria-label="شعار Risk Up">
+   <rect width="400" height="300" rx="18" fill="#0B0E0A"/>
+   <polygon points="200,25 264,59 256,74 200,44 144,74 136,59" fill="#CCFF00"/>
+   <polygon points="200,53 264,87 256,102 200,72 144,102 136,87" fill="#92BD0B" opacity=".88"/>
+   <polygon points="200,81 264,115 256,130 200,100 144,130 136,115" fill="#5D7912" opacity=".78"/>
+   <text x="200" y="185" text-anchor="middle" fill="#fff" font-family="Cairo,sans-serif" font-weight="900" font-style="italic" font-size="72">RISK</text>
+   <polygon points="132,198 280,198 268,255 120,255" fill="#CCFF00"/>
+   <text x="200" y="244" text-anchor="middle" fill="#090C08" font-family="Cairo,sans-serif" font-weight="900" font-style="italic" font-size="50">UP</text>
+   <text x="200" y="284" text-anchor="middle" fill="#9CA8B0" font-family="Cairo,sans-serif" font-weight="700" font-size="13" letter-spacing="4">FOOTBALL TOURNAMENT</text>
+  </svg>
+  <div class="mt-4 text-sm font-bold flex justify-between"><span>اكتمال التسجيل</span><span class="text-gold" id="slots">0 من 16</span></div>
+  <div class="h-3 bg-surf rounded-full overflow-hidden mt-1"><div id="bar" class="h-full bg-gold transition-all" style="width:0"></div></div>
+ </div>
+</section>
+
+<div id="status" class="max-w-6xl mx-auto px-4 hidden"><div class="c p-3 text-sm text-mu"></div></div>
+
+<section id="center" class="max-w-6xl mx-auto px-4 py-10">
+ <div class="flex flex-wrap items-end justify-between gap-3 mb-6">
+  <h2 class="text-3xl font-black">المجموعات والماتشات والنقاط</h2>
+  <button id="draw" class="b2 hidden">🔀 إجراء قرعة وتوزيع تلقائي (للأدمن)</button>
+ </div>
+ <div id="tabs" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+ <div class="grid lg:grid-cols-12 gap-6 items-start">
+  <div class="lg:col-span-7 c overflow-hidden">
+   <div class="p-4 border-b border-line flex justify-between items-center"><h3 id="st-title" class="font-black text-lg"></h3><span class="text-xs text-gold font-bold">فوز 3 • تعادل 1 • يتأهل أول وثاني</span></div>
+   <div class="overflow-x-auto"><table class="w-full text-right text-sm min-w-[480px]">
+    <thead class="text-mu text-xs"><tr><th class="p-3">#</th><th class="p-3">الفرقة</th><th>لعب</th><th>فاز</th><th>تعادل</th><th>خسر</th><th>أهداف</th><th>فارق</th><th class="text-gold">نقاط</th></tr></thead>
+    <tbody id="st-body" class="font-bold"></tbody>
+   </table></div>
+   <p class="p-3 text-xs text-mu border-t border-line">الترتيب: النقاط ثم فارق الأهداف ثم الأهداف المسجلة.</p>
+  </div>
+  <div class="lg:col-span-5 c">
+   <div class="p-4 border-b border-line"><h3 id="mt-title" class="font-black text-lg"></h3><p id="mt-hint" class="text-xs text-mu"></p></div>
+   <div id="mt-list" class="p-4 space-y-3 max-h-[540px] overflow-y-auto"></div>
+  </div>
+ </div>
+</section>
+
+<section id="register" class="max-w-3xl mx-auto px-4 py-10">
+ <h2 class="text-3xl font-black text-center mb-6">سجّل فرقتك في <span class="text-gold" dir="ltr">RISK UP</span></h2>
+ <form id="form" class="c p-5 sm:p-8 space-y-5" novalidate>
+  <div id="err" class="hidden border-r-4 border-bad bg-surf p-3 rounded-lg text-sm text-bad font-bold"></div>
+  <div class="grid sm:grid-cols-3 gap-4">
+   <label class="text-sm font-bold">اسم الفرقة *<input id="tn" maxlength="30" placeholder="مثال: صقور المعادي" class="mt-1"></label>
+   <label class="text-sm font-bold">تليفون الكابتن *<input id="ph" type="tel" dir="ltr" maxlength="11" inputmode="numeric" placeholder="01012345678" class="mt-1 text-right"></label>
+   <label class="text-sm font-bold">المجموعة<select id="pg" class="mt-1"><option value="AUTO">توزيع تلقائي</option><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
+  </div>
+  <div>
+   <div class="flex justify-between items-center mb-2"><h3 class="font-black">اللاعبون * <span class="text-xs text-mu font-normal">(5 أساسيين، حتى 8)</span></h3><button type="button" id="addp" class="b2">+ لاعب احتياطي</button></div>
+   <div id="pl" class="grid sm:grid-cols-2 gap-3"></div>
+  </div>
+  <div class="bg-surf rounded-xl p-4 space-y-3">
+   <p class="text-sm">حوّل رسوم الاشتراك على InstaPay ثم اكتب رقم العملية (اختياري، يسهّل التأكيد):</p>
+   <div class="flex items-center gap-2" dir="ltr"><b id="ip" class="text-gold text-lg select-all">01278038467</b><button type="button" id="cp" class="b2">نسخ</button></div>
+   <input id="rf" maxlength="30" placeholder="رقم عملية InstaPay" dir="ltr" class="text-right">
+  </div>
+  <button class="b w-full text-lg py-3" id="sub">تأكيد الحجز</button>
+  <div id="ok" class="hidden c p-4 text-sm font-bold border-gold"></div>
+ </form>
+</section>
+
+<section id="teams" class="max-w-6xl mx-auto px-4 py-10">
+ <div class="flex justify-between items-end mb-5"><h2 class="text-3xl font-black">الفرق المسجلة</h2><span id="cnt" class="text-sm font-bold text-gold"></span></div>
+ <div id="tg" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+ <h3 class="font-black mt-10 mb-3">ملخص المجموعات</h3>
+ <div id="ov" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+</section>
+<footer class="border-t border-line py-8 text-center text-sm text-mu">Risk Up • منصة بطولات كرة القدم</footer>
+
+<script>
+const G=['A','B','C','D'],MAX=16,MINP=5,MAXP=8,ORG='201278038467';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let db=null,uid=null,admin=false,teams=[],contacts={},matches={},active='A',toastT,drawArm;
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.remove('hidden');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.add('hidden'),3500)}
+function status(m){const s=$('status');s.classList.toggle('hidden',!m);if(m)s.firstElementChild.textContent=m}
+
+/* ---------- المنطق ---------- */
+const inGroup=g=>teams.filter(t=>t.group===g);
+function pairs(g){const a=inGroup(g).slice().sort((x,y)=>x.id<y.id?-1:1),r=[];
+ for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++)r.push({id:g+'_'+a[i].id+'_'+a[j].id,g,h:a[i],a:a[j]});return r}
+function standings(g){const s={};inGroup(g).forEach(t=>s[t.id]={t,p:0,w:0,d:0,l:0,gf:0,ga:0,pts:0});
+ pairs(g).forEach(p=>{const m=matches[p.id];if(!m||m.hs==null||m.aw==null)return;const h=s[p.h.id],a=s[p.a.id];
+  h.p++;a.p++;h.gf+=m.hs;h.ga+=m.aw;a.gf+=m.aw;a.ga+=m.hs;
+  if(m.hs>m.aw){h.w++;h.pts+=3;a.l++}else if(m.hs<m.aw){a.w++;a.pts+=3;h.l++}else{h.d++;a.d++;h.pts++;a.pts++}});
+ return Object.values(s).sort((x,y)=>y.pts-x.pts||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf)}
+function pickGroup(pref){if(pref!=='AUTO'&&inGroup(pref).length<4)return pref;
+ return G.filter(g=>inGroup(g).length<4).sort((a,b)=>inGroup(a).length-inGroup(b).length)[0]||null}
+
+/* ---------- العرض ---------- */
+function render(){
+ $('slots').textContent=`${teams.length} من ${MAX}`;$('bar').style.width=Math.min(100,teams.length/MAX*100)+'%';
+ $('cnt').textContent=`${teams.length} فريق مسجل`;$('draw').classList.toggle('hidden',!admin);
+ $('tabs').innerHTML=G.map(g=>`<button type="button" data-g="${g}" class="c p-3 text-right font-black ${g===active?'!bg-gold !text-on':''}">المجموعة ${g} <span class="text-xs font-bold float-left">${inGroup(g).length}/4</span></button>`).join('');
+ $('st-title').textContent='ترتيب المجموعة '+active;$('mt-title').textContent='ماتشات المجموعة '+active;
+ $('mt-hint').textContent=admin?'أنت أدمن: عدّل الموعد والنتيجة واحفظ':'النتائج والمواعيد يحدّثها المنظم';
+ const rows=standings(active);
+ $('st-body').innerHTML=rows.length?rows.map((r,i)=>`<tr class="border-t border-line ${i<2?'bg-surf':''}"><td class="p-3">${i+1}</td><td class="p-3">${esc(r.t.name)}</td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td dir="ltr">${r.gf}:${r.ga}</td><td dir="ltr">${r.gf-r.ga}</td><td class="text-gold font-black">${r.pts}</td></tr>`).join(''):'<tr><td colspan="9" class="p-6 text-center text-mu">لا توجد فرق في هذه المجموعة بعد.</td></tr>';
+ const ps=pairs(active);
+ $('mt-list').innerHTML=ps.length?ps.map(p=>{const m=matches[p.id]||{};
+  const sc=admin?`<input data-h="${p.id}" type="number" min="0" max="99" value="${m.hs??''}" class="!w-12 text-center !p-1"><b>:</b><input data-a="${p.id}" type="number" min="0" max="99" value="${m.aw??''}" class="!w-12 text-center !p-1">`:`<b dir="ltr">${m.hs!=null&&m.aw!=null?m.hs+' : '+m.aw:'- : -'}</b>`;
+  return `<div class="bg-surf rounded-xl p-3 space-y-2"><div class="flex justify-between text-xs text-mu font-bold">${admin?`<input data-d="${p.id}" value="${esc(m.date||'')}" placeholder="التاريخ" class="!p-1 !text-xs"><input data-t="${p.id}" value="${esc(m.time||'')}" placeholder="الوقت" class="!p-1 !text-xs !w-24">`:`<span>${esc(m.date||'موعد يحدد قريباً')}</span><span class="text-gold">${esc(m.time||'')}</span>`}</div>
+  <div class="flex items-center justify-between gap-2 text-sm font-bold"><span class="flex-1 truncate">${esc(p.h.name)}</span><span class="flex items-center gap-1" dir="ltr">${sc}</span><span class="flex-1 truncate text-left">${esc(p.a.name)}</span></div>
+  ${admin?`<button type="button" data-save="${p.id}" class="b2 w-full">حفظ</button>`:''}</div>`}).join(''):'<p class="text-center text-mu text-sm py-6">أضف فريقين على الأقل لعرض الماتشات.</p>';
+ $('tg').innerHTML=teams.length?teams.map(t=>`<div class="c p-4 space-y-2"><div class="flex justify-between"><span class="bg-gold text-on text-xs font-black px-2 rounded-full">مجموعة ${esc(t.group)}</span><span class="text-xs text-mu">${(t.players||[]).length} لاعبين</span></div><h3 class="font-black text-lg">${esc(t.name)}</h3>
+  <div class="flex flex-wrap gap-1">${(t.players||[]).map(p=>`<span class="text-[11px] bg-surf border border-line rounded px-2 py-0.5">${esc(p)}</span>`).join('')}</div>
+  ${admin?`<p class="text-xs text-mu" dir="ltr">${esc((contacts[t.id]||{}).phone||'')} ${t.ref?'• '+esc(t.ref):''}</p><div class="flex gap-2"><button type="button" data-paid="${t.id}" class="b2">${t.paid?'✅ مدفوع':'⏳ غير مدفوع'}</button><button type="button" data-del="${t.id}" class="b2 text-bad">حذف</button></div>`:''}</div>`).join(''):'<p class="col-span-full text-center text-mu py-6">لم يتم تسجيل فرق بعد.</p>';
+ $('ov').innerHTML=G.map(g=>`<button type="button" data-g="${g}" data-go="1" class="c p-4 text-right"><b class="text-gold">المجموعة ${g}</b><ul class="text-sm mt-2 space-y-1">${inGroup(g).map(t=>`<li class="truncate">• ${esc(t.name)}</li>`).join('')||'<li class="text-mu text-xs">لا توجد فرق</li>'}</ul></button>`).join('');
+}
+
+/* ---------- الأحداث (delegation) ---------- */
+document.addEventListener('click',async e=>{
+ const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.g){active=b.dataset.g;render();if(b.dataset.go)$('center').scrollIntoView();return}
+ if(!admin||!db)return;
+ try{
+  if(b.dataset.save){const id=b.dataset.save,v=k=>document.querySelector(`[data-${k}="${id}"]`).value,n=x=>x===''?null:Math.max(0,Math.min(99,parseInt(x,10)));
+   await db.doc('matches/'+id).set({id,hs:n(v('h')),aw:n(v('a')),date:v('d').slice(0,30),time:v('t').slice(0,20)});toast('تم حفظ النتيجة وتحديث الجدول')}
+  if(b.dataset.paid){const t=teams.find(x=>x.id===b.dataset.paid);await db.doc('teams/'+t.id).update({paid:!t.paid})}
+  if(b.dataset.del){if(b.dataset.armed!==b.dataset.del){b.dataset.armed=b.dataset.del;b.textContent='تأكيد الحذف؟';setTimeout(()=>{b.dataset.armed='';b.textContent='حذف'},4000);return}
+   await db.doc('teams/'+b.dataset.del).delete();toast('تم حذف الفريق')}
+ }catch(err){toast('تعذر الحفظ، حاول تاني')}
+});
+$('draw').onclick=async()=>{const b=$('draw');
+ if(!drawArm){drawArm=1;b.textContent='⚠️ هيمسح كل النتائج، اضغط تاني للتأكيد';setTimeout(()=>{drawArm=0;b.textContent='🔀 إجراء قرعة وتوزيع تلقائي (للأدمن)'},4000);return}
+ drawArm=0;b.textContent='🔀 إجراء قرعة وتوزيع تلقائي (للأدمن)';
+ try{const sh=teams.slice();for(let i=sh.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[sh[i],sh[j]]=[sh[j],sh[i]]}
+  await Promise.all(sh.map((t,i)=>db.doc('teams/'+t.id).update({group:G[i%4]})));
+  await Promise.all(Object.keys(matches).map(id=>db.doc('matches/'+id).delete()));toast('تمت القرعة')}catch(e){toast('تعذرت القرعة')}};
+
+/* ---------- نموذج التسجيل ---------- */
+function players(n,keep){const c=$('pl'),v=keep?[...c.querySelectorAll('input')].map(i=>i.value):[];c.innerHTML='';
+ for(let i=0;i<n;i++){const d=document.createElement('div');d.className='flex gap-2';
+  const inp=document.createElement('input');inp.maxLength=30;inp.placeholder=i<MINP?`لاعب أساسي ${i+1}`:`احتياطي ${i-MINP+1}`;inp.value=v[i]||'';d.appendChild(inp);
+  if(i>=MINP){const x=document.createElement('button');x.type='button';x.className='b2';x.textContent='✕';x.onclick=()=>{const vals=[...c.querySelectorAll('input')].map(i=>i.value);vals.splice(i,1);players(vals.length,0);c.querySelectorAll('input').forEach((el,k)=>el.value=vals[k]||'')};d.appendChild(x)}
+  c.appendChild(d)}}
+$('addp').onclick=()=>{const n=$('pl').children.length;n>=MAXP?toast('الحد الأقصى 8 لاعبين'):players(n+1,1)};
+$('cp').onclick=async()=>{try{await navigator.clipboard.writeText($('ip').textContent);toast('تم نسخ الرقم')}catch(e){toast('اضغط مطولاً على الرقم لنسخه')}};
+
+$('form').onsubmit=async e=>{e.preventDefault();
+ const bad=m=>{const x=$('err');x.textContent=m;x.classList.remove('hidden')};
+ const name=$('tn').value.trim().replace(/\s+/g,' '),phone=$('ph').value.replace(/\s/g,''),pg=$('pg').value,ref=$('rf').value.trim();
+ const pl=[...$('pl').querySelectorAll('input')].map(i=>i.value.trim()).filter(Boolean);
+ if(!name)return bad('اكتب اسم الفرقة.');
+ if(!/^01[0125]\d{8}$/.test(phone))return bad('رقم التليفون لازم يكون رقم مصري صحيح من 11 رقم (مثال: 01012345678).');
+ if(pl.length<MINP)return bad(`لازم تكتب ${MINP} لاعبين أساسيين على الأقل.`);
+ if(new Set(pl.map(p=>p.toLowerCase())).size!==pl.length)return bad('في اسم لاعب مكرر.');
+ if(teams.length>=MAX)return bad('اكتمل عدد الفرق (16 فريق).');
+ if(teams.some(t=>t.name.toLowerCase()===name.toLowerCase()))return bad('اسم الفرقة ده مسجل بالفعل.');
+ $('err').classList.add('hidden');
+ const group=pickGroup(pg);if(!group)return bad('كل المجموعات مكتملة.');
+ const id='t'+Date.now(),ok=$('ok');
+ $('sub').disabled=true;
+ try{if(!db)throw 0;
+  await db.doc('teams/'+id).set({name,group,players:pl,ref,paid:false,ts:Date.now()});
+  {const cr=db.doc('contacts/'+uid);try{await cr.update({[id]:phone})}catch(x){await cr.set({[id]:phone})}}
+  ok.textContent=`تم تسجيل «${name}» في المجموعة ${group}. ابعت سكرين التحويل للمنظم لتأكيد الدفع.`;ok.classList.remove('hidden');
+  e.target.reset();players(MINP,0);active=group;render();
+ }catch(err){
+  const msg=`طلب تسجيل في RISK UP%0Aالفرقة: ${encodeURIComponent(name)}%0Aالكابتن: ${phone}%0Aالمجموعة المطلوبة: ${pg}%0Aاللاعبون: ${encodeURIComponent(pl.join('، '))}${ref?'%0Aعملية InstaPay: '+encodeURIComponent(ref):''}`;
+  ok.innerHTML='';const a=document.createElement('a');a.href=`https://wa.me/${ORG}?text=${msg}`;a.target='_blank';a.rel='noopener';a.className='b inline-block';a.textContent='لم يتم الحفظ تلقائياً: ابعت الطلب للمنظم على واتساب';ok.appendChild(a);ok.classList.remove('hidden');
+ }
+ $('sub').disabled=false;
+};
+
+/* ---------- التشغيل ---------- */
+players(MINP,0);render();
+(async()=>{
+ try{const user=await claude.use('user');admin=(await user?.canEdit())??false;uid=await user?.id();db=await claude.use('db');if(!uid)db=admin?db:null}catch(e){}
+ if(!db){status('وضع القراءة فقط: التسجيل المباشر متاح لحسابات claude.ai المصرّح لها. الباقي هيبعت طلبه للمنظم على واتساب.');render();return}
+ const sub=(p,fn)=>db.collection(p).onSnapshot(s=>fn(s.docs.map(d=>({id:d.id,...d.data()}))),()=>{});
+ sub('teams',a=>{teams=a.sort((x,y)=>(x.ts||0)-(y.ts||0));render()});
+ sub('matches',a=>{matches=Object.fromEntries(a.map(m=>[m.id,m]));render()});
+ if(admin)sub('contacts',a=>{contacts={};a.forEach(c=>Object.entries(c).forEach(([k,v])=>{if(k!=='id')contacts[k]={phone:v}}));render()});
+})();
+</script>
+</body>
+</html>
