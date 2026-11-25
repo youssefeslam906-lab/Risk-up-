@@ -37,11 +37,11 @@ export function HeroSection({ teamCount }: HeroSectionProps) {
             <ul className="grid sm:grid-cols-2 gap-2.5 text-sm font-bold">
               <li className="bg-surf rounded-xl px-4 py-2.5 flex items-center justify-between">
                 <span>المركز الأول</span>
-                <span className="text-gold tabular-nums">5000 ج</span>
+                <span className="text-gold tabular-nums">7000 ج</span>
               </li>
               <li className="bg-surf rounded-xl px-4 py-2.5 flex items-center justify-between">
                 <span>المركز الثاني</span>
-                <span className="text-gold tabular-nums">2500 ج</span>
+                <span className="text-gold tabular-nums">3500 ج</span>
               </li>
               <li className="bg-surf rounded-xl px-4 py-2.5 text-tx">هداف البطولة</li>
               <li className="bg-surf rounded-xl px-4 py-2.5 text-tx">أفضل لاعب</li>
