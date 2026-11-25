@@ -18,7 +18,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GroupsAndMatches } from './components/GroupsAndMatches';
@@ -64,8 +64,18 @@ function TournamentApp() {
 
   const isAdmin =
     Boolean(user?.emailVerified) && user?.email === BOOTSTRAPPED_ADMIN_EMAIL;
-  const approvedTeams = teams.filter((team) => team.status !== 'pending');
-  const pendingTeams = teams.filter((team) => team.status === 'pending');
+  const approvedTeams = useMemo(
+    () => teams.filter((team) => team.status !== 'pending'),
+    [teams]
+  );
+  const pendingTeams = useMemo(
+    () => teams.filter((team) => team.status === 'pending'),
+    [teams]
+  );
+  const myPendingTeams = useMemo(
+    () => (user ? pendingTeams.filter((team) => team.ownerUid === user.uid) : []),
+    [pendingTeams, user]
+  );
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -102,6 +112,16 @@ function TournamentApp() {
       .catch((error: unknown) => {
         const err = error as { code?: string; message?: string };
         console.error('Auth redirect error:', err);
+        if (err?.code) {
+          setAuthError({
+            code: err.code,
+            message:
+              err.code === 'auth/unauthorized-domain'
+                ? `هذا الرابط (${window.location.hostname}) غير مضاف في النطاقات المصرح بها في Firebase Auth.`
+                : 'تعذر إتمام تسجيل الدخول بحساب جوجل.',
+            inIframe: false,
+          });
+        }
       });
 
     const unsub = onAuthStateChanged(auth, (nextUser) => {
@@ -558,7 +578,9 @@ function TournamentApp() {
               </button>
             </div>
             <p className="text-xs text-mu leading-relaxed">
-              إذا كانت نافذة تسجيل الدخول محظورة داخل نافذة المعاينة أو المتصفح، افتح الموقع في تبويب مستقل ثم اضغط «دخول المدير» في أسفل الصفحة.
+              {authError.code === 'auth/unauthorized-domain'
+                ? `للسماح بتسجيل الدخول على هذا الرابط، أضف النطاق (${window.location.hostname}) في Firebase Console داخل Authentication ثم Settings ثم Authorized domains.`
+                : 'إذا كانت نافذة تسجيل الدخول محظورة داخل نافذة المعاينة أو المتصفح، افتح الموقع في تبويب مستقل ثم اضغط «دخول المدير» في أسفل الصفحة.'}
             </p>
             <div className="flex flex-wrap items-center gap-2.5">
               {authError.inIframe && (
@@ -630,6 +652,7 @@ function TournamentApp() {
 
         <RegistrationForm
           teams={approvedTeams}
+          myPendingTeams={myPendingTeams}
           user={user}
           onSignIn={handleSignIn}
           onRegisterTeam={handleRegisterTeam}

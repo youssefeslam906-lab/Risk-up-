@@ -57,6 +57,7 @@ export function GroupsAndMatches({
 
   const pairs = buildGroupPairs(teams, activeGroup);
   const standings = computeStandings(teams, matches, activeGroup);
+  const pairsSignature = pairs.map((p) => p.id).join('|');
 
   useEffect(() => {
     const next: Record<string, DraftMatchInput> = {};
@@ -70,7 +71,8 @@ export function GroupsAndMatches({
       };
     }
     setDrafts(next);
-  }, [activeGroup, matches, teams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroup, matches, pairsSignature]);
 
   useEffect(() => {
     if (!drawArmed) return;

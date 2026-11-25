@@ -184,6 +184,27 @@ export function AdminDashboard({
     }
   };
 
+  const handleApproveWithChecks = async (
+    team: TeamDoc,
+    chosenGroup: GroupId,
+    paid: boolean
+  ) => {
+    if (teams.length >= MAX_TEAMS) {
+      onToast(`اكتمل الحد الأقصى للبطولة (${MAX_TEAMS} فريق) — احذف فريقاً أولاً.`);
+      return;
+    }
+    if (getTeamsInGroup(teams, chosenGroup).length >= MAX_TEAMS_PER_GROUP) {
+      onToast(`المجموعة ${chosenGroup} مكتملة (${MAX_TEAMS_PER_GROUP}/${MAX_TEAMS_PER_GROUP}) — اختر مجموعة أخرى.`);
+      return;
+    }
+    setBusyId(team.id);
+    try {
+      await onApproveTeam(team, { group: chosenGroup, paid });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const qualifiedCount = teams.filter((t) => t.qualified).length;
 
   return (
@@ -337,17 +358,7 @@ export function AdminDashboard({
                           <button
                             type="button"
                             disabled={isBusy}
-                            onClick={async () => {
-                              setBusyId(team.id);
-                              try {
-                                await onApproveTeam(team, {
-                                  group: chosenGroup,
-                                  paid: true,
-                                });
-                              } finally {
-                                setBusyId(null);
-                              }
-                            }}
+                            onClick={() => void handleApproveWithChecks(team, chosenGroup, true)}
                             className="inline-flex items-center gap-1.5 bg-gold text-on font-black rounded-lg px-3 py-1.5 text-xs hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
                           >
                             <Check className="w-3.5 h-3.5" />
@@ -357,17 +368,7 @@ export function AdminDashboard({
                           <button
                             type="button"
                             disabled={isBusy}
-                            onClick={async () => {
-                              setBusyId(team.id);
-                              try {
-                                await onApproveTeam(team, {
-                                  group: chosenGroup,
-                                  paid: false,
-                                });
-                              } finally {
-                                setBusyId(null);
-                              }
-                            }}
+                            onClick={() => void handleApproveWithChecks(team, chosenGroup, false)}
                             className="inline-flex items-center gap-1.5 border border-gold bg-card text-gold font-bold rounded-lg px-3 py-1.5 text-xs hover:bg-gold/10 transition-colors cursor-pointer disabled:opacity-50"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -391,9 +392,9 @@ export function AdminDashboard({
                       </div>
 
                       <div className="flex flex-wrap gap-1.5 pt-1">
-                        {team.players.map((player) => (
+                        {team.players.map((player, idx) => (
                           <span
-                            key={player}
+                            key={`${player}-${idx}`}
                             className="text-xs bg-card border border-line/60 rounded-lg px-2 py-0.5 text-tx font-semibold"
                           >
                             {player}

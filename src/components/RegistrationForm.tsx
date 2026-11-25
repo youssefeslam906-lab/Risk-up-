@@ -1,4 +1,4 @@
-import { Check, Copy, Plus, X } from 'lucide-react';
+import { Check, Clock, Copy, Plus, X } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import { pickAvailableGroup } from '../utils/tournament';
 
 interface RegistrationFormProps {
   teams: TeamDoc[];
+  myPendingTeams: TeamDoc[];
   user: User | null;
   onSignIn: () => Promise<User | null>;
   onRegisterTeam: (payload: {
@@ -31,6 +32,7 @@ interface RegistrationFormProps {
 
 export function RegistrationForm({
   teams,
+  myPendingTeams,
   user,
   onSignIn,
   onRegisterTeam,
@@ -100,6 +102,9 @@ export function RegistrationForm({
     }
     if (teams.some((t) => t.name.toLowerCase() === cleanName.toLowerCase())) {
       return { error: 'اسم الفرقة ده مسجل بالفعل.' };
+    }
+    if (myPendingTeams.some((t) => t.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { error: 'لديك طلب تسجيل معلق بالفعل بهذا الاسم في انتظار موافقة المدير.' };
     }
 
     const assignedGroup = pickAvailableGroup(teams, 'AUTO');
@@ -297,6 +302,23 @@ export function RegistrationForm({
             className="bg-surf border border-gold rounded-xl p-4 text-sm font-bold text-tx"
           >
             {successMsg}
+          </div>
+        )}
+
+        {myPendingTeams.length > 0 && (
+          <div className="bg-surf border border-line rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-black text-gold">
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>طلباتك المعلقة (لا تظهر على الموقع قبل موافقة المدير)</span>
+            </div>
+            <ul className="space-y-1 text-xs font-bold text-tx">
+              {myPendingTeams.map((pending) => (
+                <li key={pending.id} className="flex items-center justify-between gap-2">
+                  <span>{pending.name}</span>
+                  <span className="text-mu">في انتظار القبول</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </form>
