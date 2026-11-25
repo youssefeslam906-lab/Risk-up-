@@ -112,6 +112,13 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidNotificationSettings(data) {
+      return data.keys().hasAll(['smsEnabled', 'updatedAt']) &&
+        data.keys().hasOnly(['smsEnabled', 'updatedAt']) &&
+        data.smsEnabled is bool &&
+        data.updatedAt is timestamp;
+    }
+
     // 4. Collection Rules
     // Public tournament roster (zero PII)
     match /teams/{teamId} {
@@ -240,6 +247,17 @@ service cloud.firestore {
       allow get: if isValidId(uid) && isBootstrappedAdmin();
       allow list: if isBootstrappedAdmin();
       allow create, update, delete: if false;
+    }
+
+    // Non-PII SMS toggle controlled solely by admin
+    match /settings/{settingId} {
+      allow get: if settingId == 'notifications';
+      allow list: if false;
+      allow create, update: if settingId == 'notifications' &&
+        isAdmin() &&
+        isValidNotificationSettings(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
     }
   }
 }

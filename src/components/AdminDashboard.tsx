@@ -1,5 +1,5 @@
-import { Award, CheckCircle2, LogOut, Plus, ShieldCheck, Shuffle, Trash2, X } from 'lucide-react';
-import { useState } from 'react';
+import { Award, CheckCircle2, LogOut, MessageSquareText, Plus, ShieldCheck, Shuffle, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
   EGYPT_PHONE_PATTERN,
   GROUPS,
@@ -33,6 +33,15 @@ interface AdminDashboardProps {
   onRunDraw: () => Promise<void>;
   onSignOut: () => Promise<void>;
   onToast: (msg: string) => void;
+  smsEnabled: boolean;
+  onToggleSms: (next: boolean) => Promise<void>;
+  onCheckSmsStatus: () => Promise<{
+    configured: boolean;
+    provider: string;
+    senderId: string;
+    targetMasked: string;
+  } | null>;
+  onSendTestSms: () => Promise<void>;
 }
 
 export function AdminDashboard({
@@ -46,6 +55,10 @@ export function AdminDashboard({
   onRunDraw,
   onSignOut,
   onToast,
+  smsEnabled,
+  onToggleSms,
+  onCheckSmsStatus,
+  onSendTestSms,
 }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'register' | 'teams'>('teams');
   const [teamName, setTeamName] = useState('');
@@ -59,6 +72,23 @@ export function AdminDashboard({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);
+  const [smsStatus, setSmsStatus] = useState<{
+    configured: boolean;
+    provider: string;
+    senderId: string;
+    targetMasked: string;
+  } | null>(null);
+  const [smsBusy, setSmsBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void onCheckSmsStatus().then((status) => {
+      if (active && status) setSmsStatus(status);
+    });
+    return () => {
+      active = false;
+    };
+  }, [onCheckSmsStatus]);
 
   const handleAddPlayer = () => {
     if (players.length >= MAX_PLAYERS) {
@@ -207,6 +237,68 @@ export function AdminDashboard({
           >
             + تسجيل فرقة جديدة مباشرة
           </button>
+        </div>
+
+        <div className="bg-surf border border-line rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-sm font-black text-tx">
+              <MessageSquareText className="w-4 h-4 text-gold shrink-0" />
+              <span>إشعارات SMS عند تسجيل أي فرقة جديدة</span>
+            </div>
+            <p className="text-xs text-mu font-bold">
+              المرسل: <span dir="ltr" className="text-tx">RiskUp</span> · الرقم المستلم:{' '}
+              <span dir="ltr" className="text-tx tabular-nums">01224656839</span>
+              {smsStatus && (
+                <>
+                  {' '}·{' '}
+                  {smsStatus.configured ? (
+                    <span className="text-gold">بوابة الإرسال متصلة ({smsStatus.provider})</span>
+                  ) : (
+                    <span>في انتظار إضافة بيانات بوابة SMS في إعدادات الأسرار (Secrets)</span>
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {smsStatus?.configured && (
+              <button
+                type="button"
+                disabled={smsBusy}
+                onClick={async () => {
+                  setSmsBusy(true);
+                  try {
+                    await onSendTestSms();
+                  } finally {
+                    setSmsBusy(false);
+                  }
+                }}
+                className="border border-line bg-card text-tx font-bold rounded-xl px-3 py-1.5 text-xs hover:border-gold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {smsBusy ? 'جارٍ الإرسال...' : 'إرسال SMS تجريبية'}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={smsBusy}
+              onClick={async () => {
+                setSmsBusy(true);
+                try {
+                  await onToggleSms(!smsEnabled);
+                } finally {
+                  setSmsBusy(false);
+                }
+              }}
+              className={`border font-black rounded-xl px-3.5 py-1.5 text-xs transition-colors cursor-pointer disabled:opacity-50 ${
+                smsEnabled
+                  ? 'border-gold bg-gold text-on'
+                  : 'border-line bg-card text-mu hover:border-gold'
+              }`}
+            >
+              {smsEnabled ? 'مفعّل' : 'متوقف — اضغط للتفعيل'}
+            </button>
+          </div>
         </div>
 
         {activeTab === 'teams' ? (

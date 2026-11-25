@@ -18,7 +18,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GroupsAndMatches } from './components/GroupsAndMatches';
@@ -61,6 +61,7 @@ function TournamentApp() {
   const [toastMsg, setToastMsg] = useState('');
   const [authError, setAuthError] = useState<{ code: string; message: string; inIframe: boolean } | null>(null);
   const [isDark, setIsDark] = useState(true);
+  const [smsEnabled, setSmsEnabled] = useState(true);
 
   const isAdmin =
     Boolean(user?.emailVerified) && user?.email === BOOTSTRAPPED_ADMIN_EMAIL;
@@ -165,11 +166,25 @@ function TournamentApp() {
       (error) => handleFirestoreError(error, OperationType.LIST, 'scorers')
     );
 
+    const unsubSettings = onSnapshot(
+      doc(db, 'settings', 'notifications'),
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as { smsEnabled?: boolean };
+          setSmsEnabled(data.smsEnabled !== false);
+        } else {
+          setSmsEnabled(true);
+        }
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, 'settings/notifications')
+    );
+
     return () => {
       unsubTeams();
       unsubMatches();
       unsubKnockout();
       unsubScorers();
+      unsubSettings();
     };
   }, []);
 
@@ -308,8 +323,88 @@ function TournamentApp() {
     try {
       await batch.commit();
       showToast(`تم تسجيل «${payload.name}» في المجموعة ${payload.group}`);
+
+      if (smsEnabled) {
+        try {
+          const token = await currentUser.getIdToken();
+          await fetch('/api/notify-sms', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              name: payload.name,
+              phone: payload.phone,
+              group: payload.group,
+              players: payload.players,
+              ref: payload.ref,
+            }),
+          });
+        } catch {
+          // SMS dispatch failure must not block saved team registration
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `teams/${teamId}`);
+    }
+  };
+
+  const handleToggleSms = async (nextEnabled: boolean) => {
+    try {
+      await setDoc(doc(db, 'settings', 'notifications'), {
+        smsEnabled: nextEnabled,
+        updatedAt: serverTimestamp(),
+      });
+      showToast(nextEnabled ? 'تم تفعيل إشعارات SMS للمدير' : 'تم إيقاف إشعارات SMS');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'settings/notifications');
+    }
+  };
+
+  const handleCheckSmsStatus = useCallback(async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return null;
+    try {
+      const token = await currentUser.getIdToken();
+      const res = await fetch('/api/sms-status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        configured: boolean;
+        provider: string;
+        senderId: string;
+        targetMasked: string;
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleSendTestSms = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    try {
+      const token = await currentUser.getIdToken();
+      const res = await fetch('/api/notify-sms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isTest: true }),
+      });
+      const data = (await res.json()) as { sent?: boolean; configured?: boolean; reason?: string };
+      if (data.sent) {
+        showToast('تم إرسال رسالة SMS التجريبية باسم RiskUp');
+      } else if (!data.configured) {
+        showToast('أضف بيانات بوابة SMS في Settings → Secrets أولاً');
+      } else {
+        showToast(`تعذر الإرسال (${data.reason || 'ERROR'})`);
+      }
+    } catch {
+      showToast('تعذر الاتصال بخادم الإشعارات');
     }
   };
 
@@ -567,6 +662,10 @@ function TournamentApp() {
             onRunDraw={handleRunDraw}
             onSignOut={handleSignOut}
             onToast={showToast}
+            smsEnabled={smsEnabled}
+            onToggleSms={handleToggleSms}
+            onCheckSmsStatus={handleCheckSmsStatus}
+            onSendTestSms={handleSendTestSms}
           />
         )}
 
