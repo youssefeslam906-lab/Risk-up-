@@ -19,13 +19,14 @@ import {
   INSTAPAY_REF_MAX_LENGTH,
   MAX_PLAYERS,
   MAX_TEAMS,
+  MAX_TEAMS_PER_GROUP,
   MIN_PLAYERS,
   PLAYER_NAME_MAX_LENGTH,
   TEAM_NAME_MAX_LENGTH,
   TeamContactDoc,
   TeamDoc,
 } from '../types/tournament';
-import { pickAvailableGroup } from '../utils/tournament';
+import { getTeamsInGroup, pickAvailableGroup } from '../utils/tournament';
 
 interface AdminDashboardProps {
   teams: TeamDoc[];
@@ -291,7 +292,8 @@ export function AdminDashboard({
                 {pendingTeams.map((team) => {
                   const contact = contacts[team.id];
                   const isBusy = busyId === team.id;
-                  const chosenGroup = pendingGroupOverrides[team.id] ?? team.group;
+                  const defaultAvailable = pickAvailableGroup(teams, 'AUTO') ?? team.group;
+                  const chosenGroup = pendingGroupOverrides[team.id] ?? defaultAvailable;
 
                   return (
                     <article
@@ -301,9 +303,7 @@ export function AdminDashboard({
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-mu">
-                            <span className="text-gold font-black">طلب جديد</span>
-                            <span aria-hidden="true">·</span>
-                            <span>المجموعة المطلوبة: {team.group}</span>
+                            <span className="text-gold font-black">طلب تسجيل جديد</span>
                             <span aria-hidden="true">·</span>
                             <span className="tabular-nums">{team.players.length} لاعبين</span>
                           </div>
@@ -329,7 +329,7 @@ export function AdminDashboard({
                           >
                             {GROUPS.map((g) => (
                               <option key={g} value={g}>
-                                المجموعة {g}
+                                المجموعة {g} ({getTeamsInGroup(teams, g).length}/{MAX_TEAMS_PER_GROUP})
                               </option>
                             ))}
                           </select>

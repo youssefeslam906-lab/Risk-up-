@@ -1,24 +1,19 @@
-import { Check, Copy, MessageCircle, Plus, X } from 'lucide-react';
+import { Check, Copy, Plus, X } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useState } from 'react';
 import {
   EGYPT_PHONE_PATTERN,
-  GROUPS,
   GroupId,
   INSTAPAY_NUMBER,
   INSTAPAY_REF_MAX_LENGTH,
   MAX_PLAYERS,
   MAX_TEAMS,
   MIN_PLAYERS,
-  ORGANIZER_WHATSAPP,
   PLAYER_NAME_MAX_LENGTH,
   TEAM_NAME_MAX_LENGTH,
   TeamDoc,
 } from '../types/tournament';
-import {
-  buildWhatsAppRegistrationUrl,
-  pickAvailableGroup,
-} from '../utils/tournament';
+import { pickAvailableGroup } from '../utils/tournament';
 
 interface RegistrationFormProps {
   teams: TeamDoc[];
@@ -32,7 +27,6 @@ interface RegistrationFormProps {
     ref: string;
   }) => Promise<void>;
   onToast: (message: string) => void;
-  onGroupRegistered: (group: GroupId) => void;
 }
 
 export function RegistrationForm({
@@ -41,17 +35,13 @@ export function RegistrationForm({
   onSignIn,
   onRegisterTeam,
   onToast,
-  onGroupRegistered,
 }: RegistrationFormProps) {
   const [teamName, setTeamName] = useState('');
   const [phone, setPhone] = useState('');
-  const [preferredGroup, setPreferredGroup] = useState<'AUTO' | GroupId>('AUTO');
   const [players, setPlayers] = useState<string[]>(Array(MIN_PLAYERS).fill(''));
   const [instaPayRef, setInstaPayRef] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [whatsappSuccessUrl, setWhatsappSuccessUrl] = useState('');
-  const [whatsappFallbackUrl, setWhatsappFallbackUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -112,7 +102,7 @@ export function RegistrationForm({
       return { error: 'اسم الفرقة ده مسجل بالفعل.' };
     }
 
-    const assignedGroup = pickAvailableGroup(teams, preferredGroup);
+    const assignedGroup = pickAvailableGroup(teams, 'AUTO');
     if (!assignedGroup) {
       return { error: 'كل المجموعات مكتملة حالياً.' };
     }
@@ -132,8 +122,6 @@ export function RegistrationForm({
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
-    setWhatsappSuccessUrl('');
-    setWhatsappFallbackUrl('');
 
     const validation = validatePayload();
     if ('error' in validation && validation.error) {
@@ -143,13 +131,6 @@ export function RegistrationForm({
     if (!validation.data) return;
 
     const payload = validation.data;
-    const waUrl = buildWhatsAppRegistrationUrl({
-      name: payload.name,
-      phone: payload.phone,
-      preferredGroup: payload.group,
-      players: payload.players,
-      ref: payload.ref,
-    });
     setSubmitting(true);
 
     try {
@@ -158,23 +139,21 @@ export function RegistrationForm({
         activeUser = await onSignIn();
       }
       if (!activeUser) {
-        throw new Error('AUTH_REQUIRED');
+        setErrorMsg('يجب إتمام تسجيل الدخول بحساب جوجل لإرسال طلب التسجيل.');
+        return;
       }
 
       await onRegisterTeam(payload);
 
       setSuccessMsg(
-        `تم إرسال طلب تسجيل «${payload.name}» بنجاح، وهو الآن في انتظار موافقة المدير للظهور في جدول البطولة (المجموعة ${payload.group}).`
+        `تم إرسال طلب تسجيل «${payload.name}» بنجاح، وهو الآن في انتظار موافقة المدير للظهور في البطولة.`
       );
-      setWhatsappSuccessUrl(waUrl);
       setTeamName('');
       setPhone('');
-      setPreferredGroup('AUTO');
       setPlayers(Array(MIN_PLAYERS).fill(''));
       setInstaPayRef('');
-      onGroupRegistered(payload.group);
     } catch {
-      setWhatsappFallbackUrl(waUrl);
+      setErrorMsg('تعذر إرسال طلب التسجيل حالياً. حاول مرة أخرى.');
     } finally {
       setSubmitting(false);
     }
@@ -194,7 +173,6 @@ export function RegistrationForm({
         noValidate
         className="bg-card border border-line rounded-2xl p-5 sm:p-8 space-y-6"
       >
-
         {errorMsg && (
           <div
             role="alert"
@@ -204,7 +182,7 @@ export function RegistrationForm({
           </div>
         )}
 
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           <label className="text-sm font-bold text-tx block">
             اسم الفرقة *
             <input
@@ -228,22 +206,6 @@ export function RegistrationForm({
               placeholder="01012345678"
               className="mt-1.5 w-full bg-surf border border-line text-tx rounded-xl px-3.5 py-2.5 text-sm text-right tabular-nums focus:outline-2 focus:outline-gold"
             />
-          </label>
-
-          <label className="text-sm font-bold text-tx block">
-            المجموعة
-            <select
-              value={preferredGroup}
-              onChange={(e) => setPreferredGroup(e.target.value as 'AUTO' | GroupId)}
-              className="mt-1.5 w-full bg-surf border border-line text-tx rounded-xl px-3.5 py-2.5 text-sm focus:outline-2 focus:outline-gold"
-            >
-              <option value="AUTO">توزيع تلقائي</option>
-              {GROUPS.map((g) => (
-                <option key={g} value={g}>
-                  المجموعة {g}
-                </option>
-              ))}
-            </select>
           </label>
         </div>
 
@@ -326,38 +288,15 @@ export function RegistrationForm({
           disabled={submitting}
           className="w-full bg-gold text-on font-black rounded-xl py-3.5 text-base hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
         >
-          {submitting ? 'جارٍ تأكيد الحجز...' : 'تأكيد الحجز'}
+          {submitting ? 'جارٍ إرسال الطلب...' : 'إرسال طلب التسجيل'}
         </button>
 
         {successMsg && (
-          <div className="bg-surf border border-gold rounded-xl p-4 text-sm font-bold text-tx space-y-3">
-            <p>{successMsg}</p>
-            <a
-              href={whatsappSuccessUrl || `https://wa.me/${ORGANIZER_WHATSAPP}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-gold text-on font-black rounded-xl px-4 py-2 text-xs hover:opacity-90 transition-opacity"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>إرسال بيانات التسجيل على واتساب (01224656839)</span>
-            </a>
-          </div>
-        )}
-
-        {whatsappFallbackUrl && (
-          <div className="bg-surf border border-line rounded-xl p-4 space-y-3">
-            <p className="text-sm font-bold text-tx">
-              لم يكتمل الحفظ التلقائي — يمكنك إرسال بيانات فرقتك للمنظم مباشرة على واتساب (01224656839):
-            </p>
-            <a
-              href={whatsappFallbackUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-gold text-on font-black rounded-xl px-5 py-2.5 text-sm hover:opacity-90 transition-opacity"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>ابعت الطلب للمنظم على واتساب</span>
-            </a>
+          <div
+            role="status"
+            className="bg-surf border border-gold rounded-xl p-4 text-sm font-bold text-tx"
+          >
+            {successMsg}
           </div>
         )}
       </form>

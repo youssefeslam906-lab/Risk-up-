@@ -634,7 +634,6 @@ function TournamentApp() {
           onSignIn={handleSignIn}
           onRegisterTeam={handleRegisterTeam}
           onToast={showToast}
-          onGroupRegistered={setActiveGroup}
         />
 
         <TeamsDirectory

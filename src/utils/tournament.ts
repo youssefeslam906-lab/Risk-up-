@@ -4,7 +4,6 @@ import {
   MAX_TEAMS_PER_GROUP,
   MatchDoc,
   MatchPair,
-  ORGANIZER_WHATSAPP,
   StandingRow,
   TeamDoc,
 } from '../types/tournament';
@@ -103,26 +102,6 @@ export function pickAvailableGroup(
     (g) => getTeamsInGroup(teams, g).length < MAX_TEAMS_PER_GROUP
   ).sort((a, b) => getTeamsInGroup(teams, a).length - getTeamsInGroup(teams, b).length);
   return available[0] ?? null;
-}
-
-export function buildWhatsAppRegistrationUrl(params: {
-  name: string;
-  phone: string;
-  preferredGroup: string;
-  players: string[];
-  ref?: string;
-}): string {
-  const lines = [
-    'طلب تسجيل في بطولة RISK UP',
-    `الفرقة: ${params.name}`,
-    `الكابتن: ${params.phone}`,
-    `المجموعة المطلوبة: ${params.preferredGroup}`,
-    `اللاعبون: ${params.players.join('، ')}`,
-  ];
-  if (params.ref) {
-    lines.push(`رقم عملية InstaPay: ${params.ref}`);
-  }
-  return `https://wa.me/${ORGANIZER_WHATSAPP}?text=${encodeURIComponent(lines.join('\n'))}`;
 }
 
 export function extractTimestampMs(value: unknown): number {
