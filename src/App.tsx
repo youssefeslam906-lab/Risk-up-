@@ -6,8 +6,8 @@ import {
 } from 'firebase/auth';
 import {
   collection,
+  deleteDoc,
   doc,
-  getDoc,
   onSnapshot,
   query,
   serverTimestamp,
@@ -17,12 +17,14 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { AdminBar } from './components/AdminBar';
+import { AdminDashboard } from './components/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GroupsAndMatches } from './components/GroupsAndMatches';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
+import { KnockoutSection } from './components/KnockoutSection';
 import { RegistrationForm } from './components/RegistrationForm';
+import { ScorersSection } from './components/ScorersSection';
 import { TeamsDirectory } from './components/TeamsDirectory';
 import {
   auth,
@@ -35,8 +37,10 @@ import {
   BOOTSTRAPPED_ADMIN_EMAIL,
   GROUPS,
   GroupId,
-  ID_PATTERN,
+  KnockoutMatchDoc,
+  KnockoutSlotId,
   MatchDoc,
+  ScorerDoc,
   TeamContactDoc,
   TeamDoc,
 } from './types/tournament';
@@ -45,18 +49,18 @@ import { extractTimestampMs } from './utils/tournament';
 function TournamentApp() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [isAdminDoc, setIsAdminDoc] = useState(false);
 
   const [teams, setTeams] = useState<TeamDoc[]>([]);
   const [matches, setMatches] = useState<Record<string, MatchDoc>>({});
+  const [knockoutMatches, setKnockoutMatches] = useState<Record<string, KnockoutMatchDoc>>({});
+  const [scorers, setScorers] = useState<ScorerDoc[]>([]);
   const [contacts, setContacts] = useState<Record<string, TeamContactDoc>>({});
   const [activeGroup, setActiveGroup] = useState<GroupId>('A');
   const [toastMsg, setToastMsg] = useState('');
   const [isDark, setIsDark] = useState(true);
 
-  const isBootstrappedAdmin =
+  const isAdmin =
     Boolean(user?.emailVerified) && user?.email === BOOTSTRAPPED_ADMIN_EMAIL;
-  const isAdmin = isBootstrappedAdmin || isAdminDoc;
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -77,34 +81,19 @@ function TournamentApp() {
     }
   }, [isDark]);
 
-  // Listen to Firebase Auth state and resolve Admin role
+  // Listen to Firebase Auth state
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (nextUser) => {
+    const unsub = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
-      if (nextUser && nextUser.emailVerified) {
-        if (nextUser.email === BOOTSTRAPPED_ADMIN_EMAIL) {
-          setIsAdminDoc(true);
-        } else {
-          try {
-            const adminSnap = await getDoc(doc(db, 'admins', nextUser.uid));
-            setIsAdminDoc(adminSnap.exists());
-          } catch {
-            setIsAdminDoc(false);
-          }
-        }
-      } else {
-        setIsAdminDoc(false);
-      }
       setAuthReady(true);
     });
     return () => unsub();
   }, []);
 
-  // Public real-time listeners for teams & matches
+  // Public real-time listeners for teams, group matches, knockout matches, and scorers
   useEffect(() => {
-    const teamsPath = 'teams';
     const unsubTeams = onSnapshot(
-      collection(db, teamsPath),
+      collection(db, 'teams'),
       (snap) => {
         const list = snap.docs
           .map((d) => {
@@ -118,12 +107,11 @@ function TournamentApp() {
           .sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
         setTeams(list);
       },
-      (error) => handleFirestoreError(error, OperationType.LIST, teamsPath)
+      (error) => handleFirestoreError(error, OperationType.LIST, 'teams')
     );
 
-    const matchesPath = 'matches';
     const unsubMatches = onSnapshot(
-      collection(db, matchesPath),
+      collection(db, 'matches'),
       (snap) => {
         const map: Record<string, MatchDoc> = {};
         for (const d of snap.docs) {
@@ -131,16 +119,42 @@ function TournamentApp() {
         }
         setMatches(map);
       },
-      (error) => handleFirestoreError(error, OperationType.LIST, matchesPath)
+      (error) => handleFirestoreError(error, OperationType.LIST, 'matches')
+    );
+
+    const unsubKnockout = onSnapshot(
+      collection(db, 'knockout_matches'),
+      (snap) => {
+        const map: Record<string, KnockoutMatchDoc> = {};
+        for (const d of snap.docs) {
+          map[d.id] = { ...(d.data() as Omit<KnockoutMatchDoc, 'id'>), id: d.id as KnockoutSlotId };
+        }
+        setKnockoutMatches(map);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, 'knockout_matches')
+    );
+
+    const unsubScorers = onSnapshot(
+      collection(db, 'scorers'),
+      (snap) => {
+        const list = snap.docs.map((d) => ({
+          ...(d.data() as Omit<ScorerDoc, 'id'>),
+          id: d.id,
+        }));
+        setScorers(list);
+      },
+      (error) => handleFirestoreError(error, OperationType.LIST, 'scorers')
     );
 
     return () => {
       unsubTeams();
       unsubMatches();
+      unsubKnockout();
+      unsubScorers();
     };
   }, []);
 
-  // Isolated PII listener for team_contacts (scoped by ownerUid or bootstrapped admin)
+  // Isolated PII listener for team_contacts (scoped by ownerUid or sole admin)
   useEffect(() => {
     if (!authReady || !user || !user.emailVerified) {
       setContacts({});
@@ -148,7 +162,7 @@ function TournamentApp() {
     }
 
     const contactsPath = 'team_contacts';
-    const contactsQuery = isBootstrappedAdmin
+    const contactsQuery = isAdmin
       ? collection(db, contactsPath)
       : query(collection(db, contactsPath), where('ownerUid', '==', user.uid));
 
@@ -165,12 +179,16 @@ function TournamentApp() {
     );
 
     return () => unsubContacts();
-  }, [authReady, user, isBootstrappedAdmin]);
+  }, [authReady, user, isAdmin]);
 
   const handleSignIn = async (): Promise<User | null> => {
     try {
       const cred = await signInWithPopup(auth, googleProvider);
-      showToast('تم تسجيل الدخول بحساب جوجل');
+      if (cred.user.email === BOOTSTRAPPED_ADMIN_EMAIL && cred.user.emailVerified) {
+        showToast('تم فتح لوحة تحكم المدير');
+      } else {
+        showToast('تم تسجيل الدخول بنجاح');
+      }
       return cred.user;
     } catch {
       showToast('تعذر إتمام تسجيل الدخول بحساب جوجل');
@@ -189,6 +207,7 @@ function TournamentApp() {
     group: GroupId;
     players: string[];
     ref: string;
+    paid?: boolean;
   }) => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -204,7 +223,8 @@ function TournamentApp() {
       name: payload.name,
       group: payload.group,
       players: payload.players,
-      paid: false,
+      paid: Boolean(isAdmin && payload.paid),
+      qualified: false,
       ownerUid: currentUser.uid,
       createdAt: now,
     });
@@ -254,6 +274,72 @@ function TournamentApp() {
     }
   };
 
+  const handleSaveKnockoutMatch = async (payload: {
+    id: KnockoutSlotId;
+    round: 'QF' | 'SF' | 'FINAL';
+    label: string;
+    homeName: string;
+    awayName: string;
+    hs: number | null;
+    aw: number | null;
+    date: string;
+    time: string;
+    winnerName: string;
+  }) => {
+    const path = `knockout_matches/${payload.id}`;
+    try {
+      await setDoc(doc(db, 'knockout_matches', payload.id), {
+        id: payload.id,
+        round: payload.round,
+        label: payload.label,
+        homeName: payload.homeName,
+        awayName: payload.awayName,
+        hs: payload.hs,
+        aw: payload.aw,
+        date: payload.date,
+        time: payload.time,
+        winnerName: payload.winnerName,
+        updatedAt: serverTimestamp(),
+      });
+      showToast(`تم حفظ ${payload.label}`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleSaveScorer = async (payload: {
+    id?: string;
+    playerName: string;
+    teamName: string;
+    goals: number;
+  }) => {
+    const scorerId =
+      payload.id ?? `sc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const path = `scorers/${scorerId}`;
+    try {
+      await setDoc(doc(db, 'scorers', scorerId), {
+        id: scorerId,
+        playerName: payload.playerName,
+        teamName: payload.teamName,
+        goals: payload.goals,
+        updatedAt: serverTimestamp(),
+      });
+      showToast('تم تحديث جدول الهدافين');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, path);
+    }
+  };
+
+  const handleDeleteScorer = async (scorerId: string) => {
+    const path = `scorers/${scorerId}`;
+    try {
+      await deleteDoc(doc(db, 'scorers', scorerId));
+      showToast('تم حذف اللاعب من جدول الهدافين');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  };
+
   const handleRunDraw = async () => {
     if (teams.length === 0) return;
     const shuffled = teams.slice();
@@ -293,6 +379,31 @@ function TournamentApp() {
     }
   };
 
+  const handleToggleQualified = async (team: TeamDoc) => {
+    const path = `teams/${team.id}`;
+    const nextVal = !Boolean(team.qualified);
+    try {
+      await updateDoc(doc(db, 'teams', team.id), {
+        qualified: nextVal,
+      });
+      showToast(nextVal ? `تم تأهيل «${team.name}»` : `تم إلغاء تأهيل «${team.name}»`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  };
+
+  const handleChangeTeamGroup = async (team: TeamDoc, group: GroupId) => {
+    const path = `teams/${team.id}`;
+    try {
+      await updateDoc(doc(db, 'teams', team.id), {
+        group,
+      });
+      showToast(`تم نقل «${team.name}» إلى المجموعة ${group}`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  };
+
   const handleDeleteTeam = async (teamId: string) => {
     const batch = writeBatch(db);
     batch.delete(doc(db, 'teams', teamId));
@@ -312,23 +423,6 @@ function TournamentApp() {
     }
   };
 
-  const handleAddCoAdmin = async (uid: string, email: string) => {
-    if (!ID_PATTERN.test(uid)) {
-      showToast('معرّف المستخدم غير صالح');
-      return;
-    }
-    try {
-      await setDoc(doc(db, 'admins', uid), {
-        uid,
-        email,
-        createdAt: serverTimestamp(),
-      });
-      showToast('تمت إضافة المنظم المساعد بنجاح');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `admins/${uid}`);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-ink text-tx flex flex-col">
       {toastMsg && (
@@ -340,24 +434,25 @@ function TournamentApp() {
         </div>
       )}
 
-      <Header />
+      <Header isDark={isDark} onToggleTheme={() => setIsDark((prev) => !prev)} />
 
       <main className="flex-1">
         <HeroSection teamCount={teams.length} />
 
-        <AdminBar
-          user={user}
-          authReady={authReady}
-          isAdmin={isAdmin}
-          isBootstrappedAdmin={isBootstrappedAdmin}
-          isDark={isDark}
-          onToggleTheme={() => setIsDark((prev) => !prev)}
-          onSignIn={async () => {
-            await handleSignIn();
-          }}
-          onSignOut={handleSignOut}
-          onAddCoAdmin={handleAddCoAdmin}
-        />
+        {isAdmin && (
+          <AdminDashboard
+            teams={teams}
+            contacts={contacts}
+            onAdminRegisterTeam={handleRegisterTeam}
+            onTogglePaid={handleTogglePaid}
+            onToggleQualified={handleToggleQualified}
+            onChangeTeamGroup={handleChangeTeamGroup}
+            onDeleteTeam={handleDeleteTeam}
+            onRunDraw={handleRunDraw}
+            onSignOut={handleSignOut}
+            onToast={showToast}
+          />
+        )}
 
         <GroupsAndMatches
           teams={teams}
@@ -367,6 +462,21 @@ function TournamentApp() {
           isAdmin={isAdmin}
           onSaveMatch={handleSaveMatch}
           onRunDraw={handleRunDraw}
+        />
+
+        <KnockoutSection
+          teams={teams}
+          knockoutMatches={knockoutMatches}
+          isAdmin={isAdmin}
+          onSaveKnockoutMatch={handleSaveKnockoutMatch}
+        />
+
+        <ScorersSection
+          scorers={scorers}
+          teams={teams}
+          isAdmin={isAdmin}
+          onSaveScorer={handleSaveScorer}
+          onDeleteScorer={handleDeleteScorer}
         />
 
         <RegistrationForm
@@ -390,7 +500,31 @@ function TournamentApp() {
       </main>
 
       <footer className="border-t border-line py-8 px-4 text-center text-sm text-mu font-bold">
-        Risk Up · منصة بطولات كرة القدم · موسم 2026
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <span>Risk Up · منصة بطولات كرة القدم · موسم 2026</span>
+          {authReady && (
+            <>
+              <span aria-hidden="true">·</span>
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  className="underline hover:text-bad cursor-pointer"
+                >
+                  {isAdmin ? 'خروج المدير' : 'تسجيل خروج'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleSignIn()}
+                  className="underline hover:text-tx cursor-pointer"
+                >
+                  دخول المدير
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </footer>
     </div>
   );

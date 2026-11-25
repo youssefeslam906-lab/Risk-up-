@@ -1,4 +1,4 @@
-import { Check, Copy, LogIn, MessageCircle, Plus, X } from 'lucide-react';
+import { Check, Copy, MessageCircle, Plus, X } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { useState } from 'react';
 import {
@@ -191,21 +191,6 @@ export function RegistrationForm({
         noValidate
         className="bg-card border border-line rounded-2xl p-5 sm:p-8 space-y-6"
       >
-        {!user && (
-          <div className="bg-surf border border-line rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs sm:text-sm text-mu font-bold">
-              التسجيل المباشر في الجدول يتطلب تسجيل الدخول بحساب جوجل، أو يمكنك إرسال الطلب عبر واتساب.
-            </p>
-            <button
-              type="button"
-              onClick={() => void onSignIn()}
-              className="inline-flex items-center gap-1.5 border border-line bg-card text-tx font-bold rounded-xl px-3.5 py-2 text-xs whitespace-nowrap hover:border-gold transition-colors cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>تسجيل الدخول بحساب جوجل</span>
-            </button>
-          </div>
-        )}
 
         {errorMsg && (
           <div

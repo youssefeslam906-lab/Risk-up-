@@ -31,6 +31,10 @@
           "type": "boolean",
           "description": "Registration payment confirmation status controlled by admin."
         },
+        "qualified": {
+          "type": "boolean",
+          "description": "Knockout qualification status controlled by admin."
+        },
         "ownerUid": {
           "type": "string",
           "minLength": 1,
@@ -145,6 +149,109 @@
       },
       "required": ["id", "group", "homeTeamId", "awayTeamId", "date", "time", "updatedAt"]
     },
+    "KnockoutMatch": {
+      "title": "KnockoutMatch",
+      "description": "Knockout stage fixture, schedule, scoreline, and advancing winner.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["QF1", "QF2", "QF3", "QF4", "SF1", "SF2", "FINAL"],
+          "description": "Knockout slot identifier."
+        },
+        "round": {
+          "type": "string",
+          "enum": ["QF", "SF", "FINAL"],
+          "description": "Knockout round identifier."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "Arabic display label for the knockout match."
+        },
+        "homeName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 30,
+          "description": "Home side team name or slot placeholder."
+        },
+        "awayName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 30,
+          "description": "Away side team name or slot placeholder."
+        },
+        "hs": {
+          "type": "number",
+          "description": "Home score (0..99) or null."
+        },
+        "aw": {
+          "type": "number",
+          "description": "Away score (0..99) or null."
+        },
+        "date": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 30,
+          "description": "Scheduled match date."
+        },
+        "time": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 20,
+          "description": "Scheduled match time."
+        },
+        "winnerName": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 30,
+          "description": "Advancing team name controlled by admin."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["id", "round", "label", "homeName", "awayName", "date", "time", "winnerName", "updatedAt"]
+    },
+    "Scorer": {
+      "title": "Scorer",
+      "description": "Tournament goal scorer leaderboard entry.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Scorer entry document ID."
+        },
+        "playerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "Player display name."
+        },
+        "teamName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30,
+          "description": "Player's team name."
+        },
+        "goals": {
+          "type": "number",
+          "description": "Total goals scored (0..999)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["id", "playerName", "teamName", "goals", "updatedAt"]
+    },
     "Admin": {
       "title": "Admin",
       "description": "Tournament organizer admin role grant document.",
@@ -184,6 +291,14 @@
     "/matches/{matchId}": {
       "schema": { "$ref": "#/entities/Match" },
       "description": "Group stage fixture schedule and match scorelines."
+    },
+    "/knockout_matches/{matchId}": {
+      "schema": { "$ref": "#/entities/KnockoutMatch" },
+      "description": "Knockout stage brackets, fixtures, and advancing teams."
+    },
+    "/scorers/{scorerId}": {
+      "schema": { "$ref": "#/entities/Scorer" },
+      "description": "Tournament top scorers leaderboard."
     },
     "/admins/{uid}": {
       "schema": { "$ref": "#/entities/Admin" },

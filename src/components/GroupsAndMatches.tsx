@@ -220,7 +220,16 @@ export function GroupsAndMatches({
                       }`}
                     >
                       <td className="p-3 text-mu">{idx + 1}</td>
-                      <td className="p-3 text-tx max-w-[160px] truncate">{row.team.name}</td>
+                      <td className="p-3 text-tx max-w-[180px]">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">{row.team.name}</span>
+                          {row.team.qualified && (
+                            <span className="text-[11px] font-black text-gold shrink-0">
+                              · متأهل
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-2 text-center">{row.played}</td>
                       <td className="p-2 text-center">{row.won}</td>
                       <td className="p-2 text-center">{row.drawn}</td>

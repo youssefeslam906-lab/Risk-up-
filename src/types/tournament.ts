@@ -1,4 +1,6 @@
 export type GroupId = 'A' | 'B' | 'C' | 'D';
+export type KnockoutRound = 'QF' | 'SF' | 'FINAL';
+export type KnockoutSlotId = 'QF1' | 'QF2' | 'QF3' | 'QF4' | 'SF1' | 'SF2' | 'FINAL';
 
 export const GROUPS: GroupId[] = ['A', 'B', 'C', 'D'];
 export const MAX_TEAMS = 16;
@@ -24,6 +26,7 @@ export interface TeamDoc {
   group: GroupId;
   players: string[];
   paid: boolean;
+  qualified?: boolean;
   ownerUid: string;
   createdAt?: unknown;
   createdAtMs?: number;
@@ -46,6 +49,38 @@ export interface MatchDoc {
   aw: number | null;
   date: string;
   time: string;
+  updatedAt?: unknown;
+}
+
+export interface KnockoutMatchDoc {
+  id: KnockoutSlotId;
+  round: KnockoutRound;
+  label: string;
+  homeName: string;
+  awayName: string;
+  hs: number | null;
+  aw: number | null;
+  date: string;
+  time: string;
+  winnerName: string;
+  updatedAt?: unknown;
+}
+
+export const KNOCKOUT_SLOTS: { id: KnockoutSlotId; round: KnockoutRound; label: string }[] = [
+  { id: 'QF1', round: 'QF', label: 'ربع النهائي 1' },
+  { id: 'QF2', round: 'QF', label: 'ربع النهائي 2' },
+  { id: 'QF3', round: 'QF', label: 'ربع النهائي 3' },
+  { id: 'QF4', round: 'QF', label: 'ربع النهائي 4' },
+  { id: 'SF1', round: 'SF', label: 'نصف النهائي 1' },
+  { id: 'SF2', round: 'SF', label: 'نصف النهائي 2' },
+  { id: 'FINAL', round: 'FINAL', label: 'النهائي' },
+];
+
+export interface ScorerDoc {
+  id: string;
+  playerName: string;
+  teamName: string;
+  goals: number;
   updatedAt?: unknown;
 }
 

@@ -33,9 +33,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isBootstrappedAdmin() || (
-        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+      return isBootstrappedAdmin();
     }
 
     function isValidGroup(g) {
@@ -45,13 +43,14 @@ service cloud.firestore {
     // 3. Validation Blueprints
     function isValidTeam(data, teamId) {
       return data.keys().hasAll(['id', 'name', 'group', 'players', 'paid', 'ownerUid', 'createdAt']) &&
-        data.keys().hasOnly(['id', 'name', 'group', 'players', 'paid', 'ownerUid', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'group', 'players', 'paid', 'qualified', 'ownerUid', 'createdAt']) &&
         data.id == teamId &&
         data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
         isValidGroup(data.group) &&
         data.players is list && data.players.size() >= 5 && data.players.size() <= 8 &&
         data.players[0] is string && data.players[0].size() >= 1 && data.players[0].size() <= 30 &&
         data.paid is bool &&
+        (!('qualified' in data) || data.qualified is bool) &&
         isValidId(data.ownerUid) &&
         data.createdAt is timestamp;
     }
@@ -86,13 +85,31 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
-    function isValidAdmin(data, uid) {
-      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
-        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
-        data.uid == uid &&
-        isValidId(data.uid) &&
-        data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
-        data.createdAt is timestamp;
+    function isValidKnockoutMatch(data, matchId) {
+      return data.keys().hasAll(['id', 'round', 'label', 'homeName', 'awayName', 'date', 'time', 'winnerName', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'round', 'label', 'homeName', 'awayName', 'hs', 'aw', 'date', 'time', 'winnerName', 'updatedAt']) &&
+        data.id == matchId &&
+        matchId in ['QF1', 'QF2', 'QF3', 'QF4', 'SF1', 'SF2', 'FINAL'] &&
+        data.round in ['QF', 'SF', 'FINAL'] &&
+        data.label is string && data.label.size() >= 1 && data.label.size() <= 30 &&
+        data.homeName is string && data.homeName.size() <= 30 &&
+        data.awayName is string && data.awayName.size() <= 30 &&
+        (!('hs' in data) || isValidScore(data.hs)) &&
+        (!('aw' in data) || isValidScore(data.aw)) &&
+        data.date is string && data.date.size() <= 30 &&
+        data.time is string && data.time.size() <= 20 &&
+        data.winnerName is string && data.winnerName.size() <= 30 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidScorer(data, scorerId) {
+      return data.keys().hasAll(['id', 'playerName', 'teamName', 'goals', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'playerName', 'teamName', 'goals', 'updatedAt']) &&
+        data.id == scorerId &&
+        data.playerName is string && data.playerName.size() >= 1 && data.playerName.size() <= 30 &&
+        data.teamName is string && data.teamName.size() >= 1 && data.teamName.size() <= 30 &&
+        data.goals is int && data.goals >= 0 && data.goals <= 999 &&
+        data.updatedAt is timestamp;
     }
 
     // 4. Collection Rules
@@ -105,7 +122,8 @@ service cloud.firestore {
         isValidId(teamId) &&
         isValidTeam(incoming(), teamId) &&
         incoming().ownerUid == request.auth.uid &&
-        incoming().paid == false &&
+        (isAdmin() || incoming().paid == false) &&
+        (!('qualified' in incoming()) || incoming().qualified == false) &&
         incoming().createdAt == request.time &&
         existsAfter(/databases/$(database)/documents/team_contacts/$(teamId));
 
@@ -116,7 +134,7 @@ service cloud.firestore {
         incoming().ownerUid == existing().ownerUid &&
         incoming().createdAt == existing().createdAt &&
         isAdmin() &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['group', 'paid', 'name', 'players']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['group', 'paid', 'qualified', 'name', 'players']);
 
       allow delete: if isValidId(teamId) && isAdmin();
     }
@@ -176,17 +194,52 @@ service cloud.firestore {
       allow delete: if isValidId(matchId) && isAdmin();
     }
 
-    // Co-admin role registry (managed only by bootstrapped organizer)
+    // Public knockout bracket & matches (admin-only writes)
+    match /knockout_matches/{matchId} {
+      allow get: if isValidId(matchId);
+      allow list: if true;
+
+      allow create: if isValidId(matchId) &&
+        isAdmin() &&
+        isValidKnockoutMatch(incoming(), matchId) &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(matchId) &&
+        isAdmin() &&
+        isValidKnockoutMatch(incoming(), matchId) &&
+        incoming().id == existing().id &&
+        incoming().round == existing().round &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['label', 'homeName', 'awayName', 'hs', 'aw', 'date', 'time', 'winnerName', 'updatedAt']);
+
+      allow delete: if isValidId(matchId) && isAdmin();
+    }
+
+    // Public top scorers leaderboard (admin-only writes)
+    match /scorers/{scorerId} {
+      allow get: if isValidId(scorerId);
+      allow list: if true;
+
+      allow create: if isValidId(scorerId) &&
+        isAdmin() &&
+        isValidScorer(incoming(), scorerId) &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(scorerId) &&
+        isAdmin() &&
+        isValidScorer(incoming(), scorerId) &&
+        incoming().id == existing().id &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['playerName', 'teamName', 'goals', 'updatedAt']);
+
+      allow delete: if isValidId(scorerId) && isAdmin();
+    }
+
+    // Admin registry (locked strictly to bootstrapped owner)
     match /admins/{uid} {
-      allow get: if isValidId(uid) && isVerified() && (
-        request.auth.uid == uid || isBootstrappedAdmin()
-      );
+      allow get: if isValidId(uid) && isBootstrappedAdmin();
       allow list: if isBootstrappedAdmin();
-      allow create, update: if isValidId(uid) &&
-        isBootstrappedAdmin() &&
-        isValidAdmin(incoming(), uid) &&
-        incoming().createdAt == request.time;
-      allow delete: if isValidId(uid) && isBootstrappedAdmin();
+      allow create, update, delete: if false;
     }
   }
 }

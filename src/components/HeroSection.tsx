@@ -133,7 +133,7 @@ export function HeroSection({ teamCount }: HeroSectionProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div className="bg-card border border-line rounded-2xl p-4 text-center">
           <div className="text-2xl font-black text-gold tabular-nums">4</div>
           <div className="text-xs text-mu font-bold mt-1">مجموعات · دوري ثم خروج مغلوب</div>
@@ -149,6 +149,10 @@ export function HeroSection({ teamCount }: HeroSectionProps) {
         <div className="bg-card border border-line rounded-2xl p-4 text-center">
           <div className="text-2xl font-black text-tx tabular-nums">8</div>
           <div className="text-xs text-mu font-bold mt-1">فرق تتأهل لربع النهائي</div>
+        </div>
+        <div className="col-span-2 sm:col-span-1 bg-card border border-line rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black text-gold tabular-nums">1500 ج</div>
+          <div className="text-xs text-mu font-bold mt-1">رسوم تسجيل الفرقة</div>
         </div>
       </div>
     </section>
