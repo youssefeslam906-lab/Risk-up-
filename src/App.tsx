@@ -1,6 +1,8 @@
 import {
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   User,
 } from 'firebase/auth';
@@ -57,6 +59,7 @@ function TournamentApp() {
   const [contacts, setContacts] = useState<Record<string, TeamContactDoc>>({});
   const [activeGroup, setActiveGroup] = useState<GroupId>('A');
   const [toastMsg, setToastMsg] = useState('');
+  const [authError, setAuthError] = useState<{ code: string; message: string; inIframe: boolean } | null>(null);
   const [isDark, setIsDark] = useState(true);
 
   const isAdmin =
@@ -81,8 +84,24 @@ function TournamentApp() {
     }
   }, [isDark]);
 
-  // Listen to Firebase Auth state
+  // Listen to Firebase Auth state and handle redirect results
   useEffect(() => {
+    getRedirectResult(auth)
+      .then((cred) => {
+        if (cred?.user) {
+          setAuthError(null);
+          if (cred.user.email === BOOTSTRAPPED_ADMIN_EMAIL && cred.user.emailVerified) {
+            showToast('تم فتح لوحة تحكم المدير');
+          } else {
+            showToast('تم تسجيل الدخول بنجاح');
+          }
+        }
+      })
+      .catch((error: unknown) => {
+        const err = error as { code?: string; message?: string };
+        console.error('Auth redirect error:', err);
+      });
+
     const unsub = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       setAuthReady(true);
@@ -182,6 +201,15 @@ function TournamentApp() {
   }, [authReady, user, isAdmin]);
 
   const handleSignIn = async (): Promise<User | null> => {
+    setAuthError(null);
+    const inIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
+      }
+    })();
+
     try {
       const cred = await signInWithPopup(auth, googleProvider);
       if (cred.user.email === BOOTSTRAPPED_ADMIN_EMAIL && cred.user.emailVerified) {
@@ -190,8 +218,48 @@ function TournamentApp() {
         showToast('تم تسجيل الدخول بنجاح');
       }
       return cred.user;
-    } catch {
-      showToast('تعذر إتمام تسجيل الدخول بحساب جوجل');
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      const code = err?.code ?? 'unknown';
+      console.error('Google sign-in error:', code, err?.message);
+
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        showToast('تم إغلاق نافذة تسجيل الدخول قبل الإتمام');
+        return null;
+      }
+
+      if (
+        !inIframe &&
+        (code === 'auth/popup-blocked' ||
+          code === 'auth/operation-not-supported-in-this-environment')
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return null;
+        } catch (redirectErr: unknown) {
+          const rErr = redirectErr as { code?: string; message?: string };
+          setAuthError({
+            code: rErr?.code ?? code,
+            message: 'تعذر فتح نافذة تسجيل دخول جوجل تلقائياً.',
+            inIframe,
+          });
+          return null;
+        }
+      }
+
+      const readableMessage =
+        code === 'auth/popup-blocked'
+          ? 'المتصفح منع فتح نافذة تسجيل الدخول المنبثقة (Pop-up).'
+          : code === 'auth/unauthorized-domain'
+          ? `هذا الرابط (${window.location.hostname}) غير مضاف في النطاقات المصرح بها في Firebase Auth.`
+          : 'تعذر إتمام تسجيل الدخول بحساب جوجل داخل هذه النافذة.';
+
+      setAuthError({
+        code,
+        message: readableMessage,
+        inIframe,
+      });
+      showToast(readableMessage);
       return null;
     }
   };
@@ -435,6 +503,54 @@ function TournamentApp() {
       )}
 
       <Header isDark={isDark} onToggleTheme={() => setIsDark((prev) => !prev)} />
+
+      {authError && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div className="max-w-md w-full bg-card border border-bad rounded-2xl p-5 space-y-4 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-bad">{authError.message}</h3>
+                <p className="text-xs text-mu font-bold" dir="ltr">
+                  Error: {authError.code}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAuthError(null)}
+                className="text-xs text-mu hover:text-tx font-bold cursor-pointer"
+              >
+                إغلاق
+              </button>
+            </div>
+            <p className="text-xs text-mu leading-relaxed">
+              إذا كانت نافذة تسجيل الدخول محظورة داخل نافذة المعاينة أو المتصفح، افتح الموقع في تبويب مستقل ثم اضغط «دخول المدير» في أسفل الصفحة.
+            </p>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {authError.inIframe && (
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gold text-on font-black rounded-xl px-4 py-2 text-xs hover:opacity-90 transition-opacity"
+                >
+                  فتح الموقع في تبويب مستقل
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleSignIn()}
+                className="border border-line bg-surf text-tx font-bold rounded-xl px-4 py-2 text-xs hover:border-gold transition-colors cursor-pointer"
+              >
+                إعادة المحاولة
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1">
         <HeroSection teamCount={teams.length} />
