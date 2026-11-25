@@ -1,5 +1,17 @@
-import { Award, CheckCircle2, LogOut, MessageSquareText, Plus, ShieldCheck, Shuffle, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  Award,
+  BellRing,
+  Check,
+  CheckCircle2,
+  Clock,
+  LogOut,
+  Plus,
+  ShieldCheck,
+  Shuffle,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useState } from 'react';
 import {
   EGYPT_PHONE_PATTERN,
   GROUPS,
@@ -17,6 +29,7 @@ import { pickAvailableGroup } from '../utils/tournament';
 
 interface AdminDashboardProps {
   teams: TeamDoc[];
+  pendingTeams: TeamDoc[];
   contacts: Record<string, TeamContactDoc>;
   onAdminRegisterTeam: (payload: {
     name: string;
@@ -25,7 +38,12 @@ interface AdminDashboardProps {
     players: string[];
     ref: string;
     paid: boolean;
+    isAdminDirect?: boolean;
   }) => Promise<void>;
+  onApproveTeam: (
+    team: TeamDoc,
+    options?: { group?: GroupId; paid?: boolean }
+  ) => Promise<void>;
   onTogglePaid: (team: TeamDoc) => Promise<void>;
   onToggleQualified: (team: TeamDoc) => Promise<void>;
   onChangeTeamGroup: (team: TeamDoc, group: GroupId) => Promise<void>;
@@ -33,21 +51,14 @@ interface AdminDashboardProps {
   onRunDraw: () => Promise<void>;
   onSignOut: () => Promise<void>;
   onToast: (msg: string) => void;
-  smsEnabled: boolean;
-  onToggleSms: (next: boolean) => Promise<void>;
-  onCheckSmsStatus: () => Promise<{
-    configured: boolean;
-    provider: string;
-    senderId: string;
-    targetMasked: string;
-  } | null>;
-  onSendTestSms: () => Promise<void>;
 }
 
 export function AdminDashboard({
   teams,
+  pendingTeams,
   contacts,
   onAdminRegisterTeam,
+  onApproveTeam,
   onTogglePaid,
   onToggleQualified,
   onChangeTeamGroup,
@@ -55,12 +66,13 @@ export function AdminDashboard({
   onRunDraw,
   onSignOut,
   onToast,
-  smsEnabled,
-  onToggleSms,
-  onCheckSmsStatus,
-  onSendTestSms,
 }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'register' | 'teams'>('teams');
+  const [activeTab, setActiveTab] = useState<'requests' | 'teams' | 'register'>(
+    pendingTeams.length > 0 ? 'requests' : 'teams'
+  );
+  const [pendingGroupOverrides, setPendingGroupOverrides] = useState<
+    Record<string, GroupId>
+  >({});
   const [teamName, setTeamName] = useState('');
   const [phone, setPhone] = useState('');
   const [preferredGroup, setPreferredGroup] = useState<'AUTO' | GroupId>('AUTO');
@@ -72,23 +84,6 @@ export function AdminDashboard({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [drawArmed, setDrawArmed] = useState(false);
-  const [smsStatus, setSmsStatus] = useState<{
-    configured: boolean;
-    provider: string;
-    senderId: string;
-    targetMasked: string;
-  } | null>(null);
-  const [smsBusy, setSmsBusy] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    void onCheckSmsStatus().then((status) => {
-      if (active && status) setSmsStatus(status);
-    });
-    return () => {
-      active = false;
-    };
-  }, [onCheckSmsStatus]);
 
   const handleAddPlayer = () => {
     if (players.length >= MAX_PLAYERS) {
@@ -149,6 +144,7 @@ export function AdminDashboard({
         players: cleanPlayers,
         ref: cleanRef,
         paid: paidOnCreate,
+        isAdminDirect: true,
       });
       setTeamName('');
       setPhone('');
@@ -172,6 +168,21 @@ export function AdminDashboard({
     await onRunDraw();
   };
 
+  const handleDeleteWithArm = async (teamId: string) => {
+    if (armedDeleteId !== teamId) {
+      setArmedDeleteId(teamId);
+      window.setTimeout(() => setArmedDeleteId(null), 4000);
+      return;
+    }
+    setArmedDeleteId(null);
+    setBusyId(teamId);
+    try {
+      await onDeleteTeam(teamId);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const qualifiedCount = teams.filter((t) => t.qualified).length;
 
   return (
@@ -184,7 +195,7 @@ export function AdminDashboard({
               <h2>لوحة تحكم المدير (سرية للمنظم فقط)</h2>
             </div>
             <p className="text-xs text-mu font-bold">
-              تحكم كامل في تسجيل الفرق، النتائج، المواعيد، المتأهلين ({qualifiedCount} متأهل)، وجدول الهدافين.
+              تحكم كامل في طلبات التسجيل، الفرق، النتائج، المواعيد، المتأهلين ({qualifiedCount} متأهل)، وجدول الهدافين.
             </p>
           </div>
 
@@ -214,7 +225,40 @@ export function AdminDashboard({
           </div>
         </div>
 
+        {pendingTeams.length > 0 && activeTab !== 'requests' && (
+          <div className="bg-gold/10 border border-gold rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-black text-tx">
+              <BellRing className="w-4 h-4 text-gold shrink-0" />
+              <span>
+                يوجد <span className="text-gold tabular-nums">{pendingTeams.length}</span> طلب تسجيل جديد في انتظار موافقتك
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('requests')}
+              className="bg-gold text-on font-black rounded-xl px-3.5 py-1.5 text-xs hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              عرض الطلبات
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('requests')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border transition-colors cursor-pointer ${
+              activeTab === 'requests'
+                ? 'bg-gold text-on border-gold'
+                : pendingTeams.length > 0
+                ? 'bg-gold/15 text-gold border-gold hover:bg-gold hover:text-on'
+                : 'bg-surf text-tx border-line hover:border-gold'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span>طلبات التسجيل ({pendingTeams.length})</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('teams')}
@@ -226,6 +270,7 @@ export function AdminDashboard({
           >
             إدارة الفرق والمتأهلين ({teams.length})
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('register')}
@@ -239,69 +284,133 @@ export function AdminDashboard({
           </button>
         </div>
 
-        <div className="bg-surf border border-line rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm font-black text-tx">
-              <MessageSquareText className="w-4 h-4 text-gold shrink-0" />
-              <span>إشعارات SMS عند تسجيل أي فرقة جديدة</span>
-            </div>
-            <p className="text-xs text-mu font-bold">
-              المرسل: <span dir="ltr" className="text-tx">RiskUp</span> · الرقم المستلم:{' '}
-              <span dir="ltr" className="text-tx tabular-nums">01224656839</span>
-              {smsStatus && (
-                <>
-                  {' '}·{' '}
-                  {smsStatus.configured ? (
-                    <span className="text-gold">بوابة الإرسال متصلة ({smsStatus.provider})</span>
-                  ) : (
-                    <span>في انتظار إضافة بيانات بوابة SMS في إعدادات الأسرار (Secrets)</span>
-                  )}
-                </>
-              )}
-            </p>
-          </div>
+        {activeTab === 'requests' ? (
+          <div className="space-y-3">
+            {pendingTeams.length > 0 ? (
+              <div className="grid gap-3">
+                {pendingTeams.map((team) => {
+                  const contact = contacts[team.id];
+                  const isBusy = busyId === team.id;
+                  const chosenGroup = pendingGroupOverrides[team.id] ?? team.group;
 
-          <div className="flex flex-wrap items-center gap-2">
-            {smsStatus?.configured && (
-              <button
-                type="button"
-                disabled={smsBusy}
-                onClick={async () => {
-                  setSmsBusy(true);
-                  try {
-                    await onSendTestSms();
-                  } finally {
-                    setSmsBusy(false);
-                  }
-                }}
-                className="border border-line bg-card text-tx font-bold rounded-xl px-3 py-1.5 text-xs hover:border-gold transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {smsBusy ? 'جارٍ الإرسال...' : 'إرسال SMS تجريبية'}
-              </button>
+                  return (
+                    <article
+                      key={team.id}
+                      className="bg-surf border border-line rounded-xl p-4 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-mu">
+                            <span className="text-gold font-black">طلب جديد</span>
+                            <span aria-hidden="true">·</span>
+                            <span>المجموعة المطلوبة: {team.group}</span>
+                            <span aria-hidden="true">·</span>
+                            <span className="tabular-nums">{team.players.length} لاعبين</span>
+                          </div>
+                          <h3 className="text-base font-black text-tx">{team.name}</h3>
+                          <p className="text-xs font-bold text-mu tabular-nums" dir="ltr">
+                            {contact?.phone || 'لا يوجد رقم مسجل'}
+                            {contact?.ref ? ` · InstaPay: ${contact.ref}` : ''}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            aria-label={`تحديد مجموعة ${team.name}`}
+                            value={chosenGroup}
+                            disabled={isBusy}
+                            onChange={(e) =>
+                              setPendingGroupOverrides((prev) => ({
+                                ...prev,
+                                [team.id]: e.target.value as GroupId,
+                              }))
+                            }
+                            className="bg-card border border-line text-tx rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-2 focus:outline-gold"
+                          >
+                            {GROUPS.map((g) => (
+                              <option key={g} value={g}>
+                                المجموعة {g}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={async () => {
+                              setBusyId(team.id);
+                              try {
+                                await onApproveTeam(team, {
+                                  group: chosenGroup,
+                                  paid: true,
+                                });
+                              } finally {
+                                setBusyId(null);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 bg-gold text-on font-black rounded-lg px-3 py-1.5 text-xs hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>قبول وتأكيد الدفع</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={async () => {
+                              setBusyId(team.id);
+                              try {
+                                await onApproveTeam(team, {
+                                  group: chosenGroup,
+                                  paid: false,
+                                });
+                              } finally {
+                                setBusyId(null);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 border border-gold bg-card text-gold font-bold rounded-lg px-3 py-1.5 text-xs hover:bg-gold/10 transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>قبول (بدون دفع)</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleDeleteWithArm(team.id)}
+                            className={`inline-flex items-center gap-1 border rounded-lg px-2.5 py-1.5 text-xs font-bold cursor-pointer disabled:opacity-50 ${
+                              armedDeleteId === team.id
+                                ? 'border-bad bg-bad/15 text-bad'
+                                : 'border-line bg-card text-bad hover:border-bad'
+                            }`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>{armedDeleteId === team.id ? 'تأكيد الرفض؟' : 'رفض وحذف'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {team.players.map((player) => (
+                          <span
+                            key={player}
+                            className="text-xs bg-card border border-line/60 rounded-lg px-2 py-0.5 text-tx font-semibold"
+                          >
+                            {player}
+                          </span>
+                        ))}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="bg-surf border border-line rounded-xl p-6 text-center text-sm font-bold text-mu">
+                لا توجد طلبات تسجيل معلقة حالياً. أي فرقة جديدة تسجل ستظهر هنا للموافقة قبل نشرها على الموقع.
+              </div>
             )}
-            <button
-              type="button"
-              disabled={smsBusy}
-              onClick={async () => {
-                setSmsBusy(true);
-                try {
-                  await onToggleSms(!smsEnabled);
-                } finally {
-                  setSmsBusy(false);
-                }
-              }}
-              className={`border font-black rounded-xl px-3.5 py-1.5 text-xs transition-colors cursor-pointer disabled:opacity-50 ${
-                smsEnabled
-                  ? 'border-gold bg-gold text-on'
-                  : 'border-line bg-card text-mu hover:border-gold'
-              }`}
-            >
-              {smsEnabled ? 'مفعّل' : 'متوقف — اضغط للتفعيل'}
-            </button>
           </div>
-        </div>
-
-        {activeTab === 'teams' ? (
+        ) : activeTab === 'teams' ? (
           <div className="overflow-x-auto">
             <table className="w-full text-right text-sm min-w-[680px]">
               <thead className="text-xs text-mu border-b border-line">
@@ -395,20 +504,7 @@ export function AdminDashboard({
                           <button
                             type="button"
                             disabled={isBusy}
-                            onClick={async () => {
-                              if (armedDeleteId !== team.id) {
-                                setArmedDeleteId(team.id);
-                                window.setTimeout(() => setArmedDeleteId(null), 4000);
-                                return;
-                              }
-                              setArmedDeleteId(null);
-                              setBusyId(team.id);
-                              try {
-                                await onDeleteTeam(team.id);
-                              } finally {
-                                setBusyId(null);
-                              }
-                            }}
+                            onClick={() => handleDeleteWithArm(team.id)}
                             className={`inline-flex items-center gap-1 border rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer ${
                               armedDeleteId === team.id
                                 ? 'border-bad bg-bad/15 text-bad'
@@ -425,7 +521,7 @@ export function AdminDashboard({
                 ) : (
                   <tr>
                     <td colSpan={6} className="p-6 text-center text-mu">
-                      لا توجد فرق مسجلة بعد.
+                      لا توجد فرق مقبولة بعد.
                     </td>
                   </tr>
                 )}

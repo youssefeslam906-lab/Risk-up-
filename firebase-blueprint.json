@@ -35,6 +35,11 @@
           "type": "boolean",
           "description": "Knockout qualification status controlled by admin."
         },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved"],
+          "description": "Team registration approval status controlled by admin."
+        },
         "ownerUid": {
           "type": "string",
           "minLength": 1,
@@ -277,23 +282,6 @@
         }
       },
       "required": ["uid", "email", "createdAt"]
-    },
-    "NotificationSettings": {
-      "title": "NotificationSettings",
-      "description": "Tournament organizer SMS notification preference toggle.",
-      "type": "object",
-      "properties": {
-        "smsEnabled": {
-          "type": "boolean",
-          "description": "Whether SMS registration alerts are enabled."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Server timestamp of last update."
-        }
-      },
-      "required": ["smsEnabled", "updatedAt"]
     }
   },
   "firestore": {
@@ -320,10 +308,6 @@
     "/admins/{uid}": {
       "schema": { "$ref": "#/entities/Admin" },
       "description": "Authorized tournament organizer admin UIDs."
-    },
-    "/settings/{settingId}": {
-      "schema": { "$ref": "#/entities/NotificationSettings" },
-      "description": "Publicly readable non-PII notification feature flag managed by admin."
     }
   }
 }

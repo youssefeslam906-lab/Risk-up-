@@ -50,6 +50,7 @@ export function RegistrationForm({
   const [instaPayRef, setInstaPayRef] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [whatsappSuccessUrl, setWhatsappSuccessUrl] = useState('');
   const [whatsappFallbackUrl, setWhatsappFallbackUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -131,6 +132,7 @@ export function RegistrationForm({
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    setWhatsappSuccessUrl('');
     setWhatsappFallbackUrl('');
 
     const validation = validatePayload();
@@ -141,6 +143,13 @@ export function RegistrationForm({
     if (!validation.data) return;
 
     const payload = validation.data;
+    const waUrl = buildWhatsAppRegistrationUrl({
+      name: payload.name,
+      phone: payload.phone,
+      preferredGroup: payload.group,
+      players: payload.players,
+      ref: payload.ref,
+    });
     setSubmitting(true);
 
     try {
@@ -155,8 +164,9 @@ export function RegistrationForm({
       await onRegisterTeam(payload);
 
       setSuccessMsg(
-        `تم تسجيل «${payload.name}» بنجاح في المجموعة ${payload.group}. ابعت سكرين التحويل للمنظم لتأكيد الدفع.`
+        `تم إرسال طلب تسجيل «${payload.name}» بنجاح، وهو الآن في انتظار موافقة المدير للظهور في جدول البطولة (المجموعة ${payload.group}).`
       );
+      setWhatsappSuccessUrl(waUrl);
       setTeamName('');
       setPhone('');
       setPreferredGroup('AUTO');
@@ -164,13 +174,6 @@ export function RegistrationForm({
       setInstaPayRef('');
       onGroupRegistered(payload.group);
     } catch {
-      const waUrl = buildWhatsAppRegistrationUrl({
-        name: payload.name,
-        phone: payload.phone,
-        preferredGroup,
-        players: payload.players,
-        ref: payload.ref,
-      });
       setWhatsappFallbackUrl(waUrl);
     } finally {
       setSubmitting(false);
@@ -330,13 +333,13 @@ export function RegistrationForm({
           <div className="bg-surf border border-gold rounded-xl p-4 text-sm font-bold text-tx space-y-3">
             <p>{successMsg}</p>
             <a
-              href={`https://wa.me/${ORGANIZER_WHATSAPP}`}
+              href={whatsappSuccessUrl || `https://wa.me/${ORGANIZER_WHATSAPP}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 border border-line bg-card text-gold font-bold rounded-xl px-4 py-2 text-xs hover:border-gold transition-colors"
+              className="inline-flex items-center gap-2 bg-gold text-on font-black rounded-xl px-4 py-2 text-xs hover:opacity-90 transition-opacity"
             >
               <MessageCircle className="w-4 h-4" />
-              <span>إرسال سكرين التحويل على واتساب</span>
+              <span>إرسال بيانات التسجيل على واتساب (01224656839)</span>
             </a>
           </div>
         )}
@@ -344,7 +347,7 @@ export function RegistrationForm({
         {whatsappFallbackUrl && (
           <div className="bg-surf border border-line rounded-xl p-4 space-y-3">
             <p className="text-sm font-bold text-tx">
-              لم يكتمل الحفظ التلقائي — يمكنك إرسال بيانات فرقتك للمنظم مباشرة على واتساب:
+              لم يكتمل الحفظ التلقائي — يمكنك إرسال بيانات فرقتك للمنظم مباشرة على واتساب (01224656839):
             </p>
             <a
               href={whatsappFallbackUrl}

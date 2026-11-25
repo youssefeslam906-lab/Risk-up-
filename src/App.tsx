@@ -18,7 +18,7 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminDashboard } from './components/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GroupsAndMatches } from './components/GroupsAndMatches';
@@ -61,10 +61,11 @@ function TournamentApp() {
   const [toastMsg, setToastMsg] = useState('');
   const [authError, setAuthError] = useState<{ code: string; message: string; inIframe: boolean } | null>(null);
   const [isDark, setIsDark] = useState(true);
-  const [smsEnabled, setSmsEnabled] = useState(true);
 
   const isAdmin =
     Boolean(user?.emailVerified) && user?.email === BOOTSTRAPPED_ADMIN_EMAIL;
+  const approvedTeams = teams.filter((team) => team.status !== 'pending');
+  const pendingTeams = teams.filter((team) => team.status === 'pending');
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -166,25 +167,11 @@ function TournamentApp() {
       (error) => handleFirestoreError(error, OperationType.LIST, 'scorers')
     );
 
-    const unsubSettings = onSnapshot(
-      doc(db, 'settings', 'notifications'),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data() as { smsEnabled?: boolean };
-          setSmsEnabled(data.smsEnabled !== false);
-        } else {
-          setSmsEnabled(true);
-        }
-      },
-      (error) => handleFirestoreError(error, OperationType.GET, 'settings/notifications')
-    );
-
     return () => {
       unsubTeams();
       unsubMatches();
       unsubKnockout();
       unsubScorers();
-      unsubSettings();
     };
   }, []);
 
@@ -291,12 +278,14 @@ function TournamentApp() {
     players: string[];
     ref: string;
     paid?: boolean;
+    isAdminDirect?: boolean;
   }) => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
       throw new Error('AUTH_REQUIRED');
     }
 
+    const isDirectApproval = Boolean(isAdmin && payload.isAdminDirect);
     const teamId = `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const batch = writeBatch(db);
     const now = serverTimestamp();
@@ -308,6 +297,7 @@ function TournamentApp() {
       players: payload.players,
       paid: Boolean(isAdmin && payload.paid),
       qualified: false,
+      status: isDirectApproval ? 'approved' : 'pending',
       ownerUid: currentUser.uid,
       createdAt: now,
     });
@@ -322,89 +312,35 @@ function TournamentApp() {
 
     try {
       await batch.commit();
-      showToast(`تم تسجيل «${payload.name}» في المجموعة ${payload.group}`);
-
-      if (smsEnabled) {
-        try {
-          const token = await currentUser.getIdToken();
-          await fetch('/api/notify-sms', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              name: payload.name,
-              phone: payload.phone,
-              group: payload.group,
-              players: payload.players,
-              ref: payload.ref,
-            }),
-          });
-        } catch {
-          // SMS dispatch failure must not block saved team registration
-        }
-      }
+      showToast(
+        isDirectApproval
+          ? `تم تسجيل «${payload.name}» في المجموعة ${payload.group}`
+          : `تم إرسال طلب تسجيل «${payload.name}» وهو في انتظار موافقة المدير`
+      );
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `teams/${teamId}`);
     }
   };
 
-  const handleToggleSms = async (nextEnabled: boolean) => {
+  const handleApproveTeam = async (
+    team: TeamDoc,
+    options?: { group?: GroupId; paid?: boolean }
+  ) => {
+    const path = `teams/${team.id}`;
+    const updates: Partial<Pick<TeamDoc, 'status' | 'group' | 'paid'>> = {
+      status: 'approved',
+    };
+    if (options?.group) {
+      updates.group = options.group;
+    }
+    if (options?.paid !== undefined) {
+      updates.paid = options.paid;
+    }
     try {
-      await setDoc(doc(db, 'settings', 'notifications'), {
-        smsEnabled: nextEnabled,
-        updatedAt: serverTimestamp(),
-      });
-      showToast(nextEnabled ? 'تم تفعيل إشعارات SMS للمدير' : 'تم إيقاف إشعارات SMS');
+      await updateDoc(doc(db, 'teams', team.id), updates);
+      showToast(`تم قبول «${team.name}» وإضافته إلى البطولة`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'settings/notifications');
-    }
-  };
-
-  const handleCheckSmsStatus = useCallback(async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return null;
-    try {
-      const token = await currentUser.getIdToken();
-      const res = await fetch('/api/sms-status', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return null;
-      return (await res.json()) as {
-        configured: boolean;
-        provider: string;
-        senderId: string;
-        targetMasked: string;
-      };
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const handleSendTestSms = async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    try {
-      const token = await currentUser.getIdToken();
-      const res = await fetch('/api/notify-sms', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isTest: true }),
-      });
-      const data = (await res.json()) as { sent?: boolean; configured?: boolean; reason?: string };
-      if (data.sent) {
-        showToast('تم إرسال رسالة SMS التجريبية باسم RiskUp');
-      } else if (!data.configured) {
-        showToast('أضف بيانات بوابة SMS في Settings → Secrets أولاً');
-      } else {
-        showToast(`تعذر الإرسال (${data.reason || 'ERROR'})`);
-      }
-    } catch {
-      showToast('تعذر الاتصال بخادم الإشعارات');
+      handleFirestoreError(error, OperationType.UPDATE, path);
     }
   };
 
@@ -504,8 +440,8 @@ function TournamentApp() {
   };
 
   const handleRunDraw = async () => {
-    if (teams.length === 0) return;
-    const shuffled = teams.slice();
+    if (approvedTeams.length === 0) return;
+    const shuffled = approvedTeams.slice();
     for (let i = shuffled.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -648,13 +584,15 @@ function TournamentApp() {
       )}
 
       <main className="flex-1">
-        <HeroSection teamCount={teams.length} />
+        <HeroSection teamCount={approvedTeams.length} />
 
         {isAdmin && (
           <AdminDashboard
-            teams={teams}
+            teams={approvedTeams}
+            pendingTeams={pendingTeams}
             contacts={contacts}
             onAdminRegisterTeam={handleRegisterTeam}
+            onApproveTeam={handleApproveTeam}
             onTogglePaid={handleTogglePaid}
             onToggleQualified={handleToggleQualified}
             onChangeTeamGroup={handleChangeTeamGroup}
@@ -662,15 +600,11 @@ function TournamentApp() {
             onRunDraw={handleRunDraw}
             onSignOut={handleSignOut}
             onToast={showToast}
-            smsEnabled={smsEnabled}
-            onToggleSms={handleToggleSms}
-            onCheckSmsStatus={handleCheckSmsStatus}
-            onSendTestSms={handleSendTestSms}
           />
         )}
 
         <GroupsAndMatches
-          teams={teams}
+          teams={approvedTeams}
           matches={matches}
           activeGroup={activeGroup}
           onSelectGroup={setActiveGroup}
@@ -680,7 +614,7 @@ function TournamentApp() {
         />
 
         <KnockoutSection
-          teams={teams}
+          teams={approvedTeams}
           knockoutMatches={knockoutMatches}
           isAdmin={isAdmin}
           onSaveKnockoutMatch={handleSaveKnockoutMatch}
@@ -688,14 +622,14 @@ function TournamentApp() {
 
         <ScorersSection
           scorers={scorers}
-          teams={teams}
+          teams={approvedTeams}
           isAdmin={isAdmin}
           onSaveScorer={handleSaveScorer}
           onDeleteScorer={handleDeleteScorer}
         />
 
         <RegistrationForm
-          teams={teams}
+          teams={approvedTeams}
           user={user}
           onSignIn={handleSignIn}
           onRegisterTeam={handleRegisterTeam}
@@ -704,7 +638,7 @@ function TournamentApp() {
         />
 
         <TeamsDirectory
-          teams={teams}
+          teams={approvedTeams}
           contacts={contacts}
           isAdmin={isAdmin}
           currentUid={user?.uid ?? null}

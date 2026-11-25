@@ -43,7 +43,7 @@ service cloud.firestore {
     // 3. Validation Blueprints
     function isValidTeam(data, teamId) {
       return data.keys().hasAll(['id', 'name', 'group', 'players', 'paid', 'ownerUid', 'createdAt']) &&
-        data.keys().hasOnly(['id', 'name', 'group', 'players', 'paid', 'qualified', 'ownerUid', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'name', 'group', 'players', 'paid', 'qualified', 'status', 'ownerUid', 'createdAt']) &&
         data.id == teamId &&
         data.name is string && data.name.size() >= 1 && data.name.size() <= 30 &&
         isValidGroup(data.group) &&
@@ -51,6 +51,7 @@ service cloud.firestore {
         data.players[0] is string && data.players[0].size() >= 1 && data.players[0].size() <= 30 &&
         data.paid is bool &&
         (!('qualified' in data) || data.qualified is bool) &&
+        (!('status' in data) || data.status in ['pending', 'approved']) &&
         isValidId(data.ownerUid) &&
         data.createdAt is timestamp;
     }
@@ -112,13 +113,6 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
-    function isValidNotificationSettings(data) {
-      return data.keys().hasAll(['smsEnabled', 'updatedAt']) &&
-        data.keys().hasOnly(['smsEnabled', 'updatedAt']) &&
-        data.smsEnabled is bool &&
-        data.updatedAt is timestamp;
-    }
-
     // 4. Collection Rules
     // Public tournament roster (zero PII)
     match /teams/{teamId} {
@@ -129,7 +123,7 @@ service cloud.firestore {
         isValidId(teamId) &&
         isValidTeam(incoming(), teamId) &&
         incoming().ownerUid == request.auth.uid &&
-        (isAdmin() || incoming().paid == false) &&
+        (isAdmin() || (incoming().paid == false && (!('status' in incoming()) || incoming().status == 'pending'))) &&
         (!('qualified' in incoming()) || incoming().qualified == false) &&
         incoming().createdAt == request.time &&
         existsAfter(/databases/$(database)/documents/team_contacts/$(teamId));
@@ -141,7 +135,7 @@ service cloud.firestore {
         incoming().ownerUid == existing().ownerUid &&
         incoming().createdAt == existing().createdAt &&
         isAdmin() &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['group', 'paid', 'qualified', 'name', 'players']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['group', 'paid', 'qualified', 'status', 'name', 'players']);
 
       allow delete: if isValidId(teamId) && isAdmin();
     }
@@ -247,17 +241,6 @@ service cloud.firestore {
       allow get: if isValidId(uid) && isBootstrappedAdmin();
       allow list: if isBootstrappedAdmin();
       allow create, update, delete: if false;
-    }
-
-    // Non-PII SMS toggle controlled solely by admin
-    match /settings/{settingId} {
-      allow get: if settingId == 'notifications';
-      allow list: if false;
-      allow create, update: if settingId == 'notifications' &&
-        isAdmin() &&
-        isValidNotificationSettings(incoming()) &&
-        incoming().updatedAt == request.time;
-      allow delete: if false;
     }
   }
 }

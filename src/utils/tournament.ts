@@ -128,9 +128,21 @@ export function buildWhatsAppRegistrationUrl(params: {
 export function extractTimestampMs(value: unknown): number {
   if (!value) return 0;
   if (typeof value === 'number') return value;
-  if (typeof value === 'object' && value !== null && 'toMillis' in value) {
-    const fn = (value as { toMillis?: () => number }).toMillis;
-    if (typeof fn === 'function') return fn();
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toMillis' in value &&
+    typeof (value as { toMillis?: unknown }).toMillis === 'function'
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'seconds' in value &&
+    typeof (value as { seconds?: unknown }).seconds === 'number'
+  ) {
+    return (value as { seconds: number }).seconds * 1000;
   }
   return 0;
 }

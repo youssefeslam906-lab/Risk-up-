@@ -7,7 +7,7 @@ export const MAX_TEAMS = 16;
 export const MAX_TEAMS_PER_GROUP = 4;
 export const MIN_PLAYERS = 5;
 export const MAX_PLAYERS = 8;
-export const ORGANIZER_WHATSAPP = '201278038467';
+export const ORGANIZER_WHATSAPP = '201224656839';
 export const INSTAPAY_NUMBER = '01278038467';
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'youssefeslam906@gmail.com';
 
@@ -27,6 +27,7 @@ export interface TeamDoc {
   players: string[];
   paid: boolean;
   qualified?: boolean;
+  status?: 'pending' | 'approved';
   ownerUid: string;
   createdAt?: unknown;
   createdAtMs?: number;
